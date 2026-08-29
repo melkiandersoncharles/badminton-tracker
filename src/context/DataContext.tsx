@@ -13,7 +13,7 @@ import {
   updatePlayer as apiUpdatePlayer,
   updateShuttleBox as apiUpdateShuttleBox,
 } from '../lib/api'
-import { CLUB_BOX_COUNT, SHUTTLES_PER_BOX, clubOpenBoxes } from '../lib/types'
+import { SHUTTLES_PER_BOX, clubOpenBoxes } from '../lib/types'
 import type { Match, MatchDraft, Player, PlayerDraft, ShuttleBox } from '../lib/types'
 
 type DataContextValue = {
@@ -33,8 +33,8 @@ type DataContextValue = {
   removePlayer: (id: string) => Promise<void>
   addMatch: (draft: MatchDraft) => Promise<void>
   removeMatch: (id: string) => Promise<void>
-  ensureClubBoxes: () => Promise<void>
-  restockClubBoxes: () => Promise<void>
+  addShuttleBox: () => Promise<void>
+  closeShuttleBox: (boxId: string) => Promise<void>
   setClubHolder: (holderId: string | null) => Promise<void>
   useShuttle: (boxId: string) => Promise<void>
   undoShuttle: (boxId: string) => Promise<void>
@@ -135,14 +135,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
     [refresh],
   )
 
-  const ensureClubBoxes = useCallback(async () => {
+  const addShuttleBox = useCallback(async () => {
     try {
       const latest = await fetchShuttleBoxes()
-      const open = clubOpenBoxes(latest)
-      const holderId = open[0]?.holder_id ?? null
-      for (let i = open.length; i < CLUB_BOX_COUNT; i += 1) {
-        await apiCreateShuttleBox(holderId)
-      }
+      const holderId = clubOpenBoxes(latest)[0]?.holder_id ?? null
+      await apiCreateShuttleBox(holderId)
       await refresh()
     } catch (err) {
       setShuttleError(
@@ -150,22 +147,18 @@ export function DataProvider({ children }: { children: ReactNode }) {
           ? 'Shuttle table is missing. Run supabase/shuttle.sql in the Supabase SQL Editor, then refresh.'
           : err instanceof Error
             ? err.message
-            : 'Could not open the 3 shuttle boxes',
+            : 'Could not add a shuttle box',
       )
     }
   }, [refresh])
 
-  const restockClubBoxes = useCallback(async () => {
-    const latest = await fetchShuttleBoxes()
-    const open = clubOpenBoxes(latest)
-    const holderId = open[0]?.holder_id ?? null
-    const closedAt = new Date().toISOString()
-    await Promise.all(open.map((box) => apiUpdateShuttleBox(box.id, { closed_at: closedAt })))
-    for (let i = 0; i < CLUB_BOX_COUNT; i += 1) {
-      await apiCreateShuttleBox(holderId)
-    }
-    await refresh()
-  }, [refresh])
+  const closeShuttleBox = useCallback(
+    async (boxId: string) => {
+      await apiUpdateShuttleBox(boxId, { closed_at: new Date().toISOString() })
+      await refresh()
+    },
+    [refresh],
+  )
 
   const setClubHolder = useCallback(
     async (holderId: string | null) => {
@@ -211,8 +204,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       removePlayer,
       addMatch,
       removeMatch,
-      ensureClubBoxes,
-      restockClubBoxes,
+      addShuttleBox,
+      closeShuttleBox,
       setClubHolder,
       useShuttle,
       undoShuttle,
@@ -230,8 +223,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       removePlayer,
       addMatch,
       removeMatch,
-      ensureClubBoxes,
-      restockClubBoxes,
+      addShuttleBox,
+      closeShuttleBox,
       setClubHolder,
       useShuttle,
       undoShuttle,

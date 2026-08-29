@@ -1,15 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Avatar } from '../components/Avatar'
 import { PlayerChip } from '../components/PlayerChip'
 import { useData } from '../context/DataContext'
 import { formatDayLong } from '../lib/dates'
-import {
-  CLUB_BOX_COUNT,
-  CLUB_SHUTTLE_STOCK,
-  SHUTTLES_PER_BOX,
-  clubOpenBoxes,
-  remainingInBox,
-} from '../lib/types'
+import { SHUTTLES_PER_BOX, clubOpenBoxes, remainingInBox } from '../lib/types'
 import type { Player, ShuttleBox } from '../lib/types'
 
 export function ShuttleScreen() {
@@ -17,36 +11,28 @@ export function ShuttleScreen() {
     players,
     shuttleBoxes,
     shuttleError,
-    ensureClubBoxes,
-    restockClubBoxes,
+    addShuttleBox,
+    closeShuttleBox,
     setClubHolder,
     useShuttle,
     undoShuttle,
   } = useData()
   const [pickingHolder, setPickingHolder] = useState(false)
   const [busy, setBusy] = useState(false)
-  const ensuring = useRef(false)
 
-  const boxes = clubOpenBoxes(shuttleBoxes).slice(0, CLUB_BOX_COUNT)
+  const boxes = clubOpenBoxes(shuttleBoxes)
   const closedBoxes = shuttleBoxes.filter((box) => box.closed_at !== null)
   const holder = players.find((player) => player.id === boxes[0]?.holder_id) ?? null
   const used = boxes.reduce((sum, box) => sum + box.used, 0)
+  const stock = boxes.length * SHUTTLES_PER_BOX
   const remaining = boxes.reduce((sum, box) => sum + remainingInBox(box), 0)
+  const boxWord = boxes.length === 1 ? 'box' : 'boxes'
 
   const holderChoices = useMemo(() => {
     const members = players.filter((player) => !player.is_guest)
     const guests = players.filter((player) => player.is_guest)
     return [...members, ...guests]
   }, [players])
-
-  useEffect(() => {
-    if (shuttleError || ensuring.current) return
-    if (clubOpenBoxes(shuttleBoxes).length >= CLUB_BOX_COUNT) return
-    ensuring.current = true
-    void ensureClubBoxes().finally(() => {
-      ensuring.current = false
-    })
-  }, [ensureClubBoxes, shuttleBoxes, shuttleError])
 
   async function run(action: () => Promise<void>) {
     if (busy) return
@@ -60,12 +46,24 @@ export function ShuttleScreen() {
 
   return (
     <div className="space-y-5">
-      <header>
-        <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#f0c14b]">Club kit</p>
-        <h1 className="mt-1 text-2xl font-bold">Shuttle</h1>
-        <p className="mt-1 text-sm text-[#9bb5a8]">
-          {CLUB_BOX_COUNT} boxes · {SHUTTLES_PER_BOX} shuttles each
-        </p>
+      <header className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#f0c14b]">Club kit</p>
+          <h1 className="mt-1 text-2xl font-bold">Shuttle</h1>
+          <p className="mt-1 text-sm text-[#9bb5a8]">
+            {boxes.length === 0
+              ? `Add as many boxes as you need · ${SHUTTLES_PER_BOX} shuttles each`
+              : `${boxes.length} ${boxWord} · ${SHUTTLES_PER_BOX} shuttles each`}
+          </p>
+        </div>
+        <button
+          type="button"
+          disabled={busy || Boolean(shuttleError)}
+          onClick={() => void run(() => addShuttleBox())}
+          className="shrink-0 rounded-full bg-[#f0c14b] px-3 py-2 text-xs font-bold text-[#0c1f18] disabled:opacity-40"
+        >
+          Add a box
+        </button>
       </header>
 
       {shuttleError ? (
@@ -80,13 +78,13 @@ export function ShuttleScreen() {
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#9bb5a8]">Remaining</p>
             <p className="mt-1 text-4xl font-bold leading-none">
               {remaining}
-              <span className="ml-1 text-lg font-semibold text-[#9bb5a8]">/ {CLUB_SHUTTLE_STOCK}</span>
+              <span className="ml-1 text-lg font-semibold text-[#9bb5a8]">/ {stock}</span>
             </p>
           </div>
           <p className="text-right text-sm text-[#9bb5a8]">
             {used} used
             <br />
-            across {CLUB_BOX_COUNT} boxes
+            {boxes.length} {boxWord}
           </p>
         </div>
       </section>
@@ -95,7 +93,7 @@ export function ShuttleScreen() {
         <h2 className="text-base font-bold">Use from the boxes</h2>
         {boxes.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-[#d7ecd0]/20 px-4 py-8 text-center text-sm text-[#9bb5a8]">
-            Opening the 3 club boxes…
+            No boxes yet. Tap Add a box for each pack of {SHUTTLES_PER_BOX}.
           </p>
         ) : (
           boxes.map((box, index) => (
@@ -106,6 +104,16 @@ export function ShuttleScreen() {
               busy={busy}
               onUse={() => void run(() => useShuttle(box.id))}
               onUndo={() => void run(() => undoShuttle(box.id))}
+              onClose={() => {
+                const left = remainingInBox(box)
+                if (left > 0) {
+                  const ok = window.confirm(
+                    `Box ${index + 1} still has ${left} shuttle${left === 1 ? '' : 's'} left. Close it anyway?`,
+                  )
+                  if (!ok) return
+                }
+                void run(() => closeShuttleBox(box.id))
+              }}
             />
           ))
         )}
@@ -126,9 +134,9 @@ export function ShuttleScreen() {
         </div>
 
         {boxes.length > 0 ? (
-          <HolderCard holder={holder} />
+          <HolderCard holder={holder} boxCount={boxes.length} />
         ) : (
-          <p className="text-sm text-[#9bb5a8]">The 3 boxes will show here once they are open.</p>
+          <p className="text-sm text-[#9bb5a8]">Add a box, then pick who is carrying them.</p>
         )}
 
         {boxes.length > 0 && (pickingHolder || !holder) ? (
@@ -166,23 +174,6 @@ export function ShuttleScreen() {
         ) : null}
       </section>
 
-      <button
-        type="button"
-        disabled={busy || boxes.length === 0}
-        onClick={() => {
-          if (remaining > 0) {
-            const ok = window.confirm(
-              `${remaining} shuttle${remaining === 1 ? '' : 's'} still left in the 3 boxes. Open 3 new boxes anyway?`,
-            )
-            if (!ok) return
-          }
-          void run(() => restockClubBoxes())
-        }}
-        className="w-full rounded-full border border-[#f0c14b]/70 py-3 text-sm font-bold text-[#f0c14b] disabled:opacity-40"
-      >
-        Open 3 new boxes
-      </button>
-
       {closedBoxes.length > 0 ? (
         <section className="space-y-2">
           <h2 className="text-base font-bold">Finished boxes</h2>
@@ -203,12 +194,14 @@ function BoxCard({
   busy,
   onUse,
   onUndo,
+  onClose,
 }: {
   box: ShuttleBox
   label: string
   busy: boolean
   onUse: () => void
   onUndo: () => void
+  onClose: () => void
 }) {
   const remaining = remainingInBox(box)
   return (
@@ -221,7 +214,14 @@ function BoxCard({
             <span className="ml-1 text-sm font-semibold text-[#9bb5a8]">/ {SHUTTLES_PER_BOX}</span>
           </p>
         </div>
-        <p className="text-sm text-[#9bb5a8]">{box.used} used</p>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={onClose}
+          className="text-xs font-bold uppercase tracking-wider text-[#9bb5a8] disabled:opacity-40"
+        >
+          Close
+        </button>
       </div>
 
       <ol className="mt-3 flex justify-between gap-1.5" aria-label={`${label} shuttles`}>
@@ -262,14 +262,15 @@ function BoxCard({
   )
 }
 
-function HolderCard({ holder }: { holder: Player | null }) {
+function HolderCard({ holder, boxCount }: { holder: Player | null; boxCount: number }) {
+  const boxWord = boxCount === 1 ? 'box' : 'boxes'
   return (
     <div className="flex items-center gap-3 rounded-2xl bg-[#14382c] px-3 py-3">
       <Avatar player={holder} size="md" />
       <div>
         <p className="font-bold">{holder ? holder.name : 'Not assigned'}</p>
         <p className="text-xs text-[#9bb5a8]">
-          {holder ? 'Carrying all 3 boxes' : 'Tap Assign to pick someone'}
+          {holder ? `Carrying ${boxCount} ${boxWord}` : 'Tap Assign to pick someone'}
         </p>
       </div>
     </div>

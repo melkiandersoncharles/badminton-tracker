@@ -56,8 +56,6 @@ export type PlayerStat = {
 }
 
 export const SHUTTLES_PER_BOX = 6
-export const CLUB_BOX_COUNT = 3
-export const CLUB_SHUTTLE_STOCK = SHUTTLES_PER_BOX * CLUB_BOX_COUNT
 
 export type ShuttleBox = {
   id: string
