@@ -40,3 +40,22 @@ export function formatMonthLabel(key: string): string {
     year: 'numeric',
   })
 }
+
+export function isRestDay(date = new Date()): boolean {
+  const weekday = date.getDay()
+  return weekday === 0 || weekday === 6
+}
+
+/** Monday–Friday of the current week (the sessions that just finished on a rest day). */
+export function lastPlayingWeek(date = new Date()): { start: string; end: string } {
+  const weekday = date.getDay()
+  const daysFromMonday = weekday === 0 ? 6 : weekday - 1
+  const monday = new Date(date.getFullYear(), date.getMonth(), date.getDate() - daysFromMonday)
+  const friday = new Date(monday)
+  friday.setDate(monday.getDate() + 4)
+  return { start: todayISO(monday), end: todayISO(friday) }
+}
+
+export function formatDayRange(start: string, end: string): string {
+  return `${formatDay(start)} – ${formatDay(end)}`
+}

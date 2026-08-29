@@ -111,6 +111,7 @@ Then restart `npm run dev`. The yellow “this phone only” banner should disap
 
 - Doubles only, one game per match. Winner is the higher score.
 - Attendance is members who appeared in a match that day.
+- Saturday and Sunday are rest days. The Today tab shows last week’s recap (Mon–Fri matches, board, who played).
 - Shuttle tab: any number of boxes (6 shuttles each). Each box belongs to a member; one member can hold several boxes.
 - Tap a player’s name or photo for their wins, partners, and match list.
 - Photos are resized on the phone before upload.

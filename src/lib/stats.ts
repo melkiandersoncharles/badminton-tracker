@@ -19,6 +19,23 @@ export function membersPresentForDay(matches: Match[], players: Player[], day: s
     .filter((player): player is Player => player !== undefined && !player.is_guest)
 }
 
+export function matchesInRange(matches: Match[], start: string, end: string): Match[] {
+  return matches.filter((match) => match.played_on >= start && match.played_on <= end)
+}
+
+export function membersPresentInRange(matches: Match[], players: Player[], start: string, end: string): Player[] {
+  const ids = new Set<string>()
+  for (const match of matchesInRange(matches, start, end)) {
+    for (const id of [match.team_a_1, match.team_a_2, match.team_b_1, match.team_b_2]) {
+      ids.add(id)
+    }
+  }
+  return [...ids]
+    .map((id) => playerById(players, id))
+    .filter((player): player is Player => player !== undefined && !player.is_guest)
+    .sort((a, b) => a.name.localeCompare(b.name))
+}
+
 export function daysWithMatches(matches: Match[]): string[] {
   const days = new Set(matches.map((match) => match.played_on))
   return [...days].sort((a, b) => (a < b ? 1 : -1))

@@ -1,11 +1,17 @@
 import { Link } from 'react-router-dom'
 import { AttendanceGrid } from '../components/AttendanceGrid'
 import { MatchCard } from '../components/MatchCard'
+import { WeekRecap } from '../components/WeekRecap'
 import { useData } from '../context/DataContext'
-import { formatDayLong, todayISO } from '../lib/dates'
+import { formatDayLong, isRestDay, todayISO } from '../lib/dates'
 import { membersPresentForDay } from '../lib/stats'
 
 export function TodayScreen() {
+  if (isRestDay()) return <WeekRecap />
+  return <PlayDay />
+}
+
+function PlayDay() {
   const { matches, players, removeMatch } = useData()
   const day = todayISO()
   const todays = matches.filter((match) => match.played_on === day)
