@@ -1,9 +1,15 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Avatar } from '../components/Avatar'
 import { PlayerChip } from '../components/PlayerChip'
 import { useData } from '../context/DataContext'
 import { formatDayLong } from '../lib/dates'
-import { SHUTTLES_PER_BOX } from '../lib/types'
+import {
+  CLUB_BOX_COUNT,
+  CLUB_SHUTTLE_STOCK,
+  SHUTTLES_PER_BOX,
+  clubOpenBoxes,
+  remainingInBox,
+} from '../lib/types'
 import type { Player, ShuttleBox } from '../lib/types'
 
 export function ShuttleScreen() {
@@ -11,26 +17,36 @@ export function ShuttleScreen() {
     players,
     shuttleBoxes,
     shuttleError,
-    openShuttleBox,
-    setShuttleHolder,
+    ensureClubBoxes,
+    restockClubBoxes,
+    setClubHolder,
     useShuttle,
     undoShuttle,
   } = useData()
   const [pickingHolder, setPickingHolder] = useState(false)
   const [busy, setBusy] = useState(false)
+  const ensuring = useRef(false)
 
-  const openBox = shuttleBoxes.find((box) => box.closed_at === null) ?? null
+  const boxes = clubOpenBoxes(shuttleBoxes).slice(0, CLUB_BOX_COUNT)
   const closedBoxes = shuttleBoxes.filter((box) => box.closed_at !== null)
-  const holder = players.find((player) => player.id === openBox?.holder_id) ?? null
-  const used = openBox?.used ?? 0
-  const remaining = openBox ? SHUTTLES_PER_BOX - used : 0
-  const totalUsed = shuttleBoxes.reduce((sum, box) => sum + box.used, 0)
+  const holder = players.find((player) => player.id === boxes[0]?.holder_id) ?? null
+  const used = boxes.reduce((sum, box) => sum + box.used, 0)
+  const remaining = boxes.reduce((sum, box) => sum + remainingInBox(box), 0)
 
   const holderChoices = useMemo(() => {
     const members = players.filter((player) => !player.is_guest)
     const guests = players.filter((player) => player.is_guest)
     return [...members, ...guests]
   }, [players])
+
+  useEffect(() => {
+    if (shuttleError || ensuring.current) return
+    if (clubOpenBoxes(shuttleBoxes).length >= CLUB_BOX_COUNT) return
+    ensuring.current = true
+    void ensureClubBoxes().finally(() => {
+      ensuring.current = false
+    })
+  }, [ensureClubBoxes, shuttleBoxes, shuttleError])
 
   async function run(action: () => Promise<void>) {
     if (busy) return
@@ -48,8 +64,7 @@ export function ShuttleScreen() {
         <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#f0c14b]">Club kit</p>
         <h1 className="mt-1 text-2xl font-bold">Shuttle</h1>
         <p className="mt-1 text-sm text-[#9bb5a8]">
-          One box = {SHUTTLES_PER_BOX} shuttles
-          {totalUsed > 0 ? ` · ${totalUsed} used in total` : ''}
+          {CLUB_BOX_COUNT} boxes · {SHUTTLES_PER_BOX} shuttles each
         </p>
       </header>
 
@@ -59,68 +74,47 @@ export function ShuttleScreen() {
         </p>
       ) : null}
 
-      {openBox ? (
-        <section className="rounded-3xl bg-[#14382c] p-4">
-          <div className="flex items-end justify-between gap-3">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#9bb5a8]">Remaining</p>
-              <p className="mt-1 text-4xl font-bold leading-none">
-                {remaining}
-                <span className="ml-1 text-lg font-semibold text-[#9bb5a8]">/ {SHUTTLES_PER_BOX}</span>
-              </p>
-            </div>
-            <p className="text-right text-sm text-[#9bb5a8]">
-              {used} used
-              <br />
-              opened {formatDayLong(openBox.opened_on)}
+      <section className="rounded-3xl bg-[#14382c] p-4">
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#9bb5a8]">Remaining</p>
+            <p className="mt-1 text-4xl font-bold leading-none">
+              {remaining}
+              <span className="ml-1 text-lg font-semibold text-[#9bb5a8]">/ {CLUB_SHUTTLE_STOCK}</span>
             </p>
           </div>
+          <p className="text-right text-sm text-[#9bb5a8]">
+            {used} used
+            <br />
+            across {CLUB_BOX_COUNT} boxes
+          </p>
+        </div>
+      </section>
 
-          <ol className="mt-4 flex justify-between gap-2" aria-label="Shuttles in this box">
-            {Array.from({ length: SHUTTLES_PER_BOX }, (_, index) => {
-              const spent = index < used
-              return (
-                <li
-                  key={index}
-                  className={`flex h-11 flex-1 items-center justify-center rounded-2xl ${
-                    spent ? 'bg-[#0c1f18] text-[#5f7a6e]' : 'bg-[#f0c14b] text-[#0c1f18]'
-                  }`}
-                >
-                  <ShuttlePip />
-                </li>
-              )
-            })}
-          </ol>
-
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              disabled={busy || remaining === 0}
-              onClick={() => void run(() => useShuttle(openBox.id))}
-              className="rounded-full bg-[#f0c14b] py-2.5 text-sm font-bold text-[#0c1f18] disabled:opacity-40"
-            >
-              Use one
-            </button>
-            <button
-              type="button"
-              disabled={busy || used === 0}
-              onClick={() => void run(() => undoShuttle(openBox.id))}
-              className="rounded-full border border-[#d7ecd0]/25 py-2.5 text-sm font-bold text-[#d7ecd0] disabled:opacity-40"
-            >
-              Undo
-            </button>
-          </div>
-        </section>
-      ) : (
-        <section className="rounded-3xl border border-dashed border-[#d7ecd0]/20 px-4 py-8 text-center">
-          <p className="text-sm text-[#9bb5a8]">No open box. Tap below when you crack a new pack of 6.</p>
-        </section>
-      )}
+      <section className="space-y-3">
+        <h2 className="text-base font-bold">Use from the boxes</h2>
+        {boxes.length === 0 ? (
+          <p className="rounded-2xl border border-dashed border-[#d7ecd0]/20 px-4 py-8 text-center text-sm text-[#9bb5a8]">
+            Opening the 3 club boxes…
+          </p>
+        ) : (
+          boxes.map((box, index) => (
+            <BoxCard
+              key={box.id}
+              box={box}
+              label={`Box ${index + 1}`}
+              busy={busy}
+              onUse={() => void run(() => useShuttle(box.id))}
+              onUndo={() => void run(() => undoShuttle(box.id))}
+            />
+          ))
+        )}
+      </section>
 
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-base font-bold">Who has the box</h2>
-          {openBox ? (
+          <h2 className="text-base font-bold">Who has the boxes</h2>
+          {boxes.length > 0 ? (
             <button
               type="button"
               className="text-xs font-bold uppercase tracking-wider text-[#f0c14b]"
@@ -131,20 +125,20 @@ export function ShuttleScreen() {
           ) : null}
         </div>
 
-        {openBox ? (
+        {boxes.length > 0 ? (
           <HolderCard holder={holder} />
         ) : (
-          <p className="text-sm text-[#9bb5a8]">Open a box first, then pick who is carrying it.</p>
+          <p className="text-sm text-[#9bb5a8]">The 3 boxes will show here once they are open.</p>
         )}
 
-        {openBox && (pickingHolder || !holder) ? (
+        {boxes.length > 0 && (pickingHolder || !holder) ? (
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
               disabled={busy}
               onClick={() =>
                 void run(async () => {
-                  await setShuttleHolder(openBox.id, null)
+                  await setClubHolder(null)
                   setPickingHolder(false)
                 })
               }
@@ -162,7 +156,7 @@ export function ShuttleScreen() {
                 disabled={busy}
                 onClick={() =>
                   void run(async () => {
-                    await setShuttleHolder(openBox.id, player.id)
+                    await setClubHolder(player.id)
                     setPickingHolder(false)
                   })
                 }
@@ -174,19 +168,19 @@ export function ShuttleScreen() {
 
       <button
         type="button"
-        disabled={busy}
+        disabled={busy || boxes.length === 0}
         onClick={() => {
-          if (openBox && remaining > 0) {
+          if (remaining > 0) {
             const ok = window.confirm(
-              `This box still has ${remaining} shuttle${remaining === 1 ? '' : 's'} left. Open a new box anyway?`,
+              `${remaining} shuttle${remaining === 1 ? '' : 's'} still left in the 3 boxes. Open 3 new boxes anyway?`,
             )
             if (!ok) return
           }
-          void run(() => openShuttleBox(openBox?.holder_id ?? null))
+          void run(() => restockClubBoxes())
         }}
         className="w-full rounded-full border border-[#f0c14b]/70 py-3 text-sm font-bold text-[#f0c14b] disabled:opacity-40"
       >
-        {openBox ? 'Open a new box' : 'Open a box of 6'}
+        Open 3 new boxes
       </button>
 
       {closedBoxes.length > 0 ? (
@@ -203,6 +197,71 @@ export function ShuttleScreen() {
   )
 }
 
+function BoxCard({
+  box,
+  label,
+  busy,
+  onUse,
+  onUndo,
+}: {
+  box: ShuttleBox
+  label: string
+  busy: boolean
+  onUse: () => void
+  onUndo: () => void
+}) {
+  const remaining = remainingInBox(box)
+  return (
+    <article className="rounded-3xl bg-[#14382c] p-4">
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#f0c14b]">{label}</p>
+          <p className="mt-1 text-xl font-bold">
+            {remaining} left
+            <span className="ml-1 text-sm font-semibold text-[#9bb5a8]">/ {SHUTTLES_PER_BOX}</span>
+          </p>
+        </div>
+        <p className="text-sm text-[#9bb5a8]">{box.used} used</p>
+      </div>
+
+      <ol className="mt-3 flex justify-between gap-1.5" aria-label={`${label} shuttles`}>
+        {Array.from({ length: SHUTTLES_PER_BOX }, (_, index) => {
+          const spent = index < box.used
+          return (
+            <li
+              key={index}
+              className={`flex h-9 flex-1 items-center justify-center rounded-xl ${
+                spent ? 'bg-[#0c1f18] text-[#5f7a6e]' : 'bg-[#f0c14b] text-[#0c1f18]'
+              }`}
+            >
+              <ShuttlePip />
+            </li>
+          )
+        })}
+      </ol>
+
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          disabled={busy || remaining === 0}
+          onClick={onUse}
+          className="rounded-full bg-[#f0c14b] py-2 text-sm font-bold text-[#0c1f18] disabled:opacity-40"
+        >
+          Use one
+        </button>
+        <button
+          type="button"
+          disabled={busy || box.used === 0}
+          onClick={onUndo}
+          className="rounded-full border border-[#d7ecd0]/25 py-2 text-sm font-bold text-[#d7ecd0] disabled:opacity-40"
+        >
+          Undo
+        </button>
+      </div>
+    </article>
+  )
+}
+
 function HolderCard({ holder }: { holder: Player | null }) {
   return (
     <div className="flex items-center gap-3 rounded-2xl bg-[#14382c] px-3 py-3">
@@ -210,7 +269,7 @@ function HolderCard({ holder }: { holder: Player | null }) {
       <div>
         <p className="font-bold">{holder ? holder.name : 'Not assigned'}</p>
         <p className="text-xs text-[#9bb5a8]">
-          {holder ? 'Carrying the current box' : 'Tap Assign to pick someone'}
+          {holder ? 'Carrying all 3 boxes' : 'Tap Assign to pick someone'}
         </p>
       </div>
     </div>
@@ -237,7 +296,7 @@ function ClosedBoxRow({ box, players }: { box: ShuttleBox; players: Player[] }) 
 
 function ShuttlePip() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path
         d="M12 3v4M8 5.5 12 7l4-1.5M7 9h10l-1.2 8.5a4 4 0 0 1-7.6 0L7 9Z"
         stroke="currentColor"

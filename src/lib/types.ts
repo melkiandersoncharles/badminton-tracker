@@ -56,6 +56,8 @@ export type PlayerStat = {
 }
 
 export const SHUTTLES_PER_BOX = 6
+export const CLUB_BOX_COUNT = 3
+export const CLUB_SHUTTLE_STOCK = SHUTTLES_PER_BOX * CLUB_BOX_COUNT
 
 export type ShuttleBox = {
   id: string
@@ -64,6 +66,16 @@ export type ShuttleBox = {
   opened_on: string
   closed_at: string | null
   created_at: string
+}
+
+export function clubOpenBoxes(boxes: ShuttleBox[]): ShuttleBox[] {
+  return boxes
+    .filter((box) => box.closed_at === null)
+    .sort((a, b) => (a.created_at < b.created_at ? -1 : 1))
+}
+
+export function remainingInBox(box: ShuttleBox): number {
+  return Math.max(0, SHUTTLES_PER_BOX - box.used)
 }
 
 export function matchPlayerIds(match: Match | MatchDraft): string[] {

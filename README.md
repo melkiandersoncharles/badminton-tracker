@@ -111,6 +111,6 @@ Then restart `npm run dev`. The yellow “this phone only” banner should disap
 
 - Doubles only, one game per match. Winner is the higher score.
 - Attendance is members who appeared in a match that day.
-- Shuttle tab tracks a box of 6: remaining, used, and who is holding it.
+- Shuttle tab tracks 3 boxes of 6 (18 shuttles): remaining, used, and who is holding them.
 - Tap a player’s name or photo for their wins, partners, and match list.
 - Photos are resized on the phone before upload.
