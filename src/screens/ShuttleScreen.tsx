@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { Avatar } from '../components/Avatar'
 import { PlayerChip } from '../components/PlayerChip'
 import { useData } from '../context/DataContext'
@@ -13,26 +13,35 @@ export function ShuttleScreen() {
     shuttleError,
     addShuttleBox,
     closeShuttleBox,
-    setClubHolder,
+    setBoxHolder,
     useShuttle,
     undoShuttle,
   } = useData()
-  const [pickingHolder, setPickingHolder] = useState(false)
+  const [pickingFor, setPickingFor] = useState<string | 'new' | null>(null)
   const [busy, setBusy] = useState(false)
 
-  const boxes = clubOpenBoxes(shuttleBoxes)
+  const members = useMemo(
+    () => players.filter((player) => !player.is_guest),
+    [players],
+  )
+  const boxes = [...clubOpenBoxes(shuttleBoxes)].sort((a, b) => {
+    const nameA = members.find((player) => player.id === a.holder_id)?.name ?? 'zzz'
+    const nameB = members.find((player) => player.id === b.holder_id)?.name ?? 'zzz'
+    return nameA.localeCompare(nameB)
+  })
   const closedBoxes = shuttleBoxes.filter((box) => box.closed_at !== null)
-  const holder = players.find((player) => player.id === boxes[0]?.holder_id) ?? null
   const used = boxes.reduce((sum, box) => sum + box.used, 0)
   const stock = boxes.length * SHUTTLES_PER_BOX
   const remaining = boxes.reduce((sum, box) => sum + remainingInBox(box), 0)
   const boxWord = boxes.length === 1 ? 'box' : 'boxes'
 
-  const holderChoices = useMemo(() => {
-    const members = players.filter((player) => !player.is_guest)
-    const guests = players.filter((player) => player.is_guest)
-    return [...members, ...guests]
-  }, [players])
+  const takenHolderIds = useMemo(() => {
+    const ids = new Set<string>()
+    for (const box of boxes) {
+      if (box.holder_id) ids.add(box.holder_id)
+    }
+    return ids
+  }, [boxes])
 
   async function run(action: () => Promise<void>) {
     if (busy) return
@@ -52,17 +61,17 @@ export function ShuttleScreen() {
           <h1 className="mt-1 text-2xl font-bold">Shuttle</h1>
           <p className="mt-1 text-sm text-[#9bb5a8]">
             {boxes.length === 0
-              ? `Add as many boxes as you need · ${SHUTTLES_PER_BOX} shuttles each`
+              ? `One box per member · ${SHUTTLES_PER_BOX} shuttles each`
               : `${boxes.length} ${boxWord} · ${SHUTTLES_PER_BOX} shuttles each`}
           </p>
         </div>
         <button
           type="button"
-          disabled={busy || Boolean(shuttleError)}
-          onClick={() => void run(() => addShuttleBox())}
+          disabled={busy || Boolean(shuttleError) || members.length === 0}
+          onClick={() => setPickingFor((current) => (current === 'new' ? null : 'new'))}
           className="shrink-0 rounded-full bg-[#f0c14b] px-3 py-2 text-xs font-bold text-[#0c1f18] disabled:opacity-40"
         >
-          Add a box
+          {pickingFor === 'new' ? 'Cancel' : 'Add a box'}
         </button>
       </header>
 
@@ -70,6 +79,21 @@ export function ShuttleScreen() {
         <p className="rounded-2xl border border-red-400/30 bg-red-950/40 px-4 py-3 text-sm text-red-100">
           {shuttleError}
         </p>
+      ) : null}
+
+      {pickingFor === 'new' ? (
+        <MemberPicker
+          title="Whose box is this?"
+          members={members}
+          takenIds={takenHolderIds}
+          busy={busy}
+          onPick={(member) =>
+            void run(async () => {
+              await addShuttleBox(member.id)
+              setPickingFor(null)
+            })
+          }
+        />
       ) : null}
 
       <section className="rounded-3xl bg-[#14382c] p-4">
@@ -90,88 +114,59 @@ export function ShuttleScreen() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-base font-bold">Use from the boxes</h2>
-        {boxes.length === 0 ? (
+        <h2 className="text-base font-bold">Boxes by member</h2>
+        {members.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-[#d7ecd0]/20 px-4 py-8 text-center text-sm text-[#9bb5a8]">
-            No boxes yet. Tap Add a box for each pack of {SHUTTLES_PER_BOX}.
+            Add members on Players first, then give each one a box.
+          </p>
+        ) : boxes.length === 0 ? (
+          <p className="rounded-2xl border border-dashed border-[#d7ecd0]/20 px-4 py-8 text-center text-sm text-[#9bb5a8]">
+            No boxes yet. Tap Add a box and pick the member who is holding it.
           </p>
         ) : (
-          boxes.map((box, index) => (
-            <BoxCard
-              key={box.id}
-              box={box}
-              label={`Box ${index + 1}`}
-              busy={busy}
-              onUse={() => void run(() => useShuttle(box.id))}
-              onUndo={() => void run(() => undoShuttle(box.id))}
-              onClose={() => {
-                const left = remainingInBox(box)
-                if (left > 0) {
-                  const ok = window.confirm(
-                    `Box ${index + 1} still has ${left} shuttle${left === 1 ? '' : 's'} left. Close it anyway?`,
-                  )
-                  if (!ok) return
-                }
-                void run(() => closeShuttleBox(box.id))
-              }}
-            />
-          ))
+          boxes.map((box) => {
+            const holder = members.find((player) => player.id === box.holder_id) ?? null
+            return (
+              <BoxCard
+                key={box.id}
+                box={box}
+                holder={holder}
+                busy={busy}
+                picking={pickingFor === box.id}
+                onTogglePick={() => setPickingFor((current) => (current === box.id ? null : box.id))}
+                onUse={() => void run(() => useShuttle(box.id))}
+                onUndo={() => void run(() => undoShuttle(box.id))}
+                onClose={() => {
+                  const left = remainingInBox(box)
+                  const name = holder?.name ?? 'this box'
+                  if (left > 0) {
+                    const ok = window.confirm(
+                      `${name} still has ${left} shuttle${left === 1 ? '' : 's'} left. Close this box anyway?`,
+                    )
+                    if (!ok) return
+                  }
+                  void run(() => closeShuttleBox(box.id))
+                }}
+              >
+                {pickingFor === box.id ? (
+                  <MemberPicker
+                    title="Move this box to"
+                    members={members}
+                    takenIds={takenHolderIds}
+                    keepId={box.holder_id}
+                    busy={busy}
+                    onPick={(member) =>
+                      void run(async () => {
+                        await setBoxHolder(box.id, member.id)
+                        setPickingFor(null)
+                      })
+                    }
+                  />
+                ) : null}
+              </BoxCard>
+            )
+          })
         )}
-      </section>
-
-      <section className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-base font-bold">Who has the boxes</h2>
-          {boxes.length > 0 ? (
-            <button
-              type="button"
-              className="text-xs font-bold uppercase tracking-wider text-[#f0c14b]"
-              onClick={() => setPickingHolder((open) => !open)}
-            >
-              {pickingHolder ? 'Done' : holder ? 'Change' : 'Assign'}
-            </button>
-          ) : null}
-        </div>
-
-        {boxes.length > 0 ? (
-          <HolderCard holder={holder} boxCount={boxes.length} />
-        ) : (
-          <p className="text-sm text-[#9bb5a8]">Add a box, then pick who is carrying them.</p>
-        )}
-
-        {boxes.length > 0 && (pickingHolder || !holder) ? (
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() =>
-                void run(async () => {
-                  await setClubHolder(null)
-                  setPickingHolder(false)
-                })
-              }
-              className={`rounded-2xl px-3 py-3 text-xs font-semibold ${
-                !holder ? 'bg-[#f0c14b] text-[#0c1f18]' : 'bg-[#1c4a3a] text-[#d7ecd0]'
-              }`}
-            >
-              Nobody yet
-            </button>
-            {holderChoices.map((player) => (
-              <PlayerChip
-                key={player.id}
-                player={player}
-                selected={holder?.id === player.id}
-                disabled={busy}
-                onClick={() =>
-                  void run(async () => {
-                    await setClubHolder(player.id)
-                    setPickingHolder(false)
-                  })
-                }
-              />
-            ))}
-          </div>
-        ) : null}
       </section>
 
       {closedBoxes.length > 0 ? (
@@ -188,43 +183,99 @@ export function ShuttleScreen() {
   )
 }
 
+function MemberPicker({
+  title,
+  members,
+  takenIds,
+  keepId = null,
+  busy,
+  onPick,
+}: {
+  title: string
+  members: Player[]
+  takenIds: Set<string>
+  keepId?: string | null
+  busy: boolean
+  onPick: (member: Player) => void
+}) {
+  const available = members.filter((member) => member.id === keepId || !takenIds.has(member.id))
+  return (
+    <section className="space-y-2 rounded-3xl bg-[#14382c] p-4">
+      <h3 className="text-sm font-bold">{title}</h3>
+      {available.length === 0 ? (
+        <p className="text-sm text-[#9bb5a8]">Every member already has a box.</p>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {available.map((member) => (
+            <PlayerChip
+              key={member.id}
+              player={member}
+              selected={member.id === keepId}
+              disabled={busy}
+              onClick={() => onPick(member)}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
 function BoxCard({
   box,
-  label,
+  holder,
   busy,
+  picking,
+  onTogglePick,
   onUse,
   onUndo,
   onClose,
+  children,
 }: {
   box: ShuttleBox
-  label: string
+  holder: Player | null
   busy: boolean
+  picking: boolean
+  onTogglePick: () => void
   onUse: () => void
   onUndo: () => void
   onClose: () => void
+  children?: ReactNode
 }) {
   const remaining = remainingInBox(box)
   return (
-    <article className="rounded-3xl bg-[#14382c] p-4">
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#f0c14b]">{label}</p>
-          <p className="mt-1 text-xl font-bold">
-            {remaining} left
-            <span className="ml-1 text-sm font-semibold text-[#9bb5a8]">/ {SHUTTLES_PER_BOX}</span>
-          </p>
+    <article className="space-y-3 rounded-3xl bg-[#14382c] p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <Avatar player={holder} size="md" />
+          <div className="min-w-0">
+            <p className="truncate font-bold">{holder?.name ?? 'No member'}</p>
+            <p className="text-xs text-[#9bb5a8]">
+              {remaining} left · {box.used} used
+            </p>
+          </div>
         </div>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={onClose}
-          className="text-xs font-bold uppercase tracking-wider text-[#9bb5a8] disabled:opacity-40"
-        >
-          Close
-        </button>
+        <div className="flex shrink-0 flex-col items-end gap-2">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onTogglePick}
+            className="text-xs font-bold uppercase tracking-wider text-[#f0c14b] disabled:opacity-40"
+          >
+            {picking ? 'Done' : holder ? 'Change' : 'Assign'}
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onClose}
+            className="text-xs font-bold uppercase tracking-wider text-[#9bb5a8] disabled:opacity-40"
+          >
+            Close
+          </button>
+        </div>
       </div>
 
-      <ol className="mt-3 flex justify-between gap-1.5" aria-label={`${label} shuttles`}>
+      <ol className="flex justify-between gap-1.5" aria-label={`${holder?.name ?? 'Unassigned'} shuttles`}>
         {Array.from({ length: SHUTTLES_PER_BOX }, (_, index) => {
           const spent = index < box.used
           return (
@@ -240,7 +291,7 @@ function BoxCard({
         })}
       </ol>
 
-      <div className="mt-3 grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-2">
         <button
           type="button"
           disabled={busy || remaining === 0}
@@ -258,22 +309,9 @@ function BoxCard({
           Undo
         </button>
       </div>
-    </article>
-  )
-}
 
-function HolderCard({ holder, boxCount }: { holder: Player | null; boxCount: number }) {
-  const boxWord = boxCount === 1 ? 'box' : 'boxes'
-  return (
-    <div className="flex items-center gap-3 rounded-2xl bg-[#14382c] px-3 py-3">
-      <Avatar player={holder} size="md" />
-      <div>
-        <p className="font-bold">{holder ? holder.name : 'Not assigned'}</p>
-        <p className="text-xs text-[#9bb5a8]">
-          {holder ? `Carrying ${boxCount} ${boxWord}` : 'Tap Assign to pick someone'}
-        </p>
-      </div>
-    </div>
+      {children}
+    </article>
   )
 }
 

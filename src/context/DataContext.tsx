@@ -13,7 +13,7 @@ import {
   updatePlayer as apiUpdatePlayer,
   updateShuttleBox as apiUpdateShuttleBox,
 } from '../lib/api'
-import { SHUTTLES_PER_BOX, clubOpenBoxes } from '../lib/types'
+import { SHUTTLES_PER_BOX } from '../lib/types'
 import type { Match, MatchDraft, Player, PlayerDraft, ShuttleBox } from '../lib/types'
 
 type DataContextValue = {
@@ -33,9 +33,9 @@ type DataContextValue = {
   removePlayer: (id: string) => Promise<void>
   addMatch: (draft: MatchDraft) => Promise<void>
   removeMatch: (id: string) => Promise<void>
-  addShuttleBox: () => Promise<void>
+  addShuttleBox: (holderId: string) => Promise<void>
   closeShuttleBox: (boxId: string) => Promise<void>
-  setClubHolder: (holderId: string | null) => Promise<void>
+  setBoxHolder: (boxId: string, holderId: string | null) => Promise<void>
   useShuttle: (boxId: string) => Promise<void>
   undoShuttle: (boxId: string) => Promise<void>
 }
@@ -135,22 +135,23 @@ export function DataProvider({ children }: { children: ReactNode }) {
     [refresh],
   )
 
-  const addShuttleBox = useCallback(async () => {
-    try {
-      const latest = await fetchShuttleBoxes()
-      const holderId = clubOpenBoxes(latest)[0]?.holder_id ?? null
-      await apiCreateShuttleBox(holderId)
-      await refresh()
-    } catch (err) {
-      setShuttleError(
-        isMissingShuttleTable(err)
-          ? 'Shuttle table is missing. Run supabase/shuttle.sql in the Supabase SQL Editor, then refresh.'
-          : err instanceof Error
-            ? err.message
-            : 'Could not add a shuttle box',
-      )
-    }
-  }, [refresh])
+  const addShuttleBox = useCallback(
+    async (holderId: string) => {
+      try {
+        await apiCreateShuttleBox(holderId)
+        await refresh()
+      } catch (err) {
+        setShuttleError(
+          isMissingShuttleTable(err)
+            ? 'Shuttle table is missing. Run supabase/shuttle.sql in the Supabase SQL Editor, then refresh.'
+            : err instanceof Error
+              ? err.message
+              : 'Could not add a shuttle box',
+        )
+      }
+    },
+    [refresh],
+  )
 
   const closeShuttleBox = useCallback(
     async (boxId: string) => {
@@ -160,13 +161,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
     [refresh],
   )
 
-  const setClubHolder = useCallback(
-    async (holderId: string | null) => {
-      const open = clubOpenBoxes(shuttleBoxes)
-      await Promise.all(open.map((box) => apiUpdateShuttleBox(box.id, { holder_id: holderId })))
+  const setBoxHolder = useCallback(
+    async (boxId: string, holderId: string | null) => {
+      await apiUpdateShuttleBox(boxId, { holder_id: holderId })
       await refresh()
     },
-    [refresh, shuttleBoxes],
+    [refresh],
   )
 
   const useShuttle = useCallback(
@@ -206,7 +206,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       removeMatch,
       addShuttleBox,
       closeShuttleBox,
-      setClubHolder,
+      setBoxHolder,
       useShuttle,
       undoShuttle,
     }),
@@ -225,7 +225,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       removeMatch,
       addShuttleBox,
       closeShuttleBox,
-      setClubHolder,
+      setBoxHolder,
       useShuttle,
       undoShuttle,
     ],
