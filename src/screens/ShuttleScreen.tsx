@@ -35,14 +35,6 @@ export function ShuttleScreen() {
   const remaining = boxes.reduce((sum, box) => sum + remainingInBox(box), 0)
   const boxWord = boxes.length === 1 ? 'box' : 'boxes'
 
-  const takenHolderIds = useMemo(() => {
-    const ids = new Set<string>()
-    for (const box of boxes) {
-      if (box.holder_id) ids.add(box.holder_id)
-    }
-    return ids
-  }, [boxes])
-
   async function run(action: () => Promise<void>) {
     if (busy) return
     setBusy(true)
@@ -61,7 +53,7 @@ export function ShuttleScreen() {
           <h1 className="mt-1 text-2xl font-bold">Shuttle</h1>
           <p className="mt-1 text-sm text-[#9bb5a8]">
             {boxes.length === 0
-              ? `One box per member · ${SHUTTLES_PER_BOX} shuttles each`
+              ? `Any member can hold several boxes · ${SHUTTLES_PER_BOX} shuttles each`
               : `${boxes.length} ${boxWord} · ${SHUTTLES_PER_BOX} shuttles each`}
           </p>
         </div>
@@ -85,7 +77,7 @@ export function ShuttleScreen() {
         <MemberPicker
           title="Whose box is this?"
           members={members}
-          takenIds={takenHolderIds}
+          selectedId={null}
           busy={busy}
           onPick={(member) =>
             void run(async () => {
@@ -117,7 +109,7 @@ export function ShuttleScreen() {
         <h2 className="text-base font-bold">Boxes by member</h2>
         {members.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-[#d7ecd0]/20 px-4 py-8 text-center text-sm text-[#9bb5a8]">
-            Add members on Players first, then give each one a box.
+            Add members on Players first, then add boxes and pick who is holding each one.
           </p>
         ) : boxes.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-[#d7ecd0]/20 px-4 py-8 text-center text-sm text-[#9bb5a8]">
@@ -126,11 +118,14 @@ export function ShuttleScreen() {
         ) : (
           boxes.map((box) => {
             const holder = members.find((player) => player.id === box.holder_id) ?? null
+            const same = boxes.filter((item) => item.holder_id && item.holder_id === box.holder_id)
+            const boxNumber = same.length > 1 ? same.findIndex((item) => item.id === box.id) + 1 : null
             return (
               <BoxCard
                 key={box.id}
                 box={box}
                 holder={holder}
+                boxNumber={boxNumber}
                 busy={busy}
                 picking={pickingFor === box.id}
                 onTogglePick={() => setPickingFor((current) => (current === box.id ? null : box.id))}
@@ -152,8 +147,7 @@ export function ShuttleScreen() {
                   <MemberPicker
                     title="Move this box to"
                     members={members}
-                    takenIds={takenHolderIds}
-                    keepId={box.holder_id}
+                    selectedId={box.holder_id}
                     busy={busy}
                     onPick={(member) =>
                       void run(async () => {
@@ -186,37 +180,38 @@ export function ShuttleScreen() {
 function MemberPicker({
   title,
   members,
-  takenIds,
-  keepId = null,
+  selectedId = null,
   busy,
   onPick,
 }: {
   title: string
   members: Player[]
-  takenIds: Set<string>
-  keepId?: string | null
+  selectedId?: string | null
   busy: boolean
   onPick: (member: Player) => void
 }) {
-  const available = members.filter((member) => member.id === keepId || !takenIds.has(member.id))
+  if (members.length === 0) {
+    return (
+      <section className="space-y-2 rounded-3xl bg-[#14382c] p-4">
+        <h3 className="text-sm font-bold">{title}</h3>
+        <p className="text-sm text-[#9bb5a8]">Add members on Players first.</p>
+      </section>
+    )
+  }
   return (
     <section className="space-y-2 rounded-3xl bg-[#14382c] p-4">
       <h3 className="text-sm font-bold">{title}</h3>
-      {available.length === 0 ? (
-        <p className="text-sm text-[#9bb5a8]">Every member already has a box.</p>
-      ) : (
-        <div className="flex flex-wrap gap-2">
-          {available.map((member) => (
-            <PlayerChip
-              key={member.id}
-              player={member}
-              selected={member.id === keepId}
-              disabled={busy}
-              onClick={() => onPick(member)}
-            />
-          ))}
-        </div>
-      )}
+      <div className="flex flex-wrap gap-2">
+        {members.map((member) => (
+          <PlayerChip
+            key={member.id}
+            player={member}
+            selected={member.id === selectedId}
+            disabled={busy}
+            onClick={() => onPick(member)}
+          />
+        ))}
+      </div>
     </section>
   )
 }
@@ -224,6 +219,7 @@ function MemberPicker({
 function BoxCard({
   box,
   holder,
+  boxNumber,
   busy,
   picking,
   onTogglePick,
@@ -234,6 +230,7 @@ function BoxCard({
 }: {
   box: ShuttleBox
   holder: Player | null
+  boxNumber: number | null
   busy: boolean
   picking: boolean
   onTogglePick: () => void
@@ -243,13 +240,18 @@ function BoxCard({
   children?: ReactNode
 }) {
   const remaining = remainingInBox(box)
+  const title = holder
+    ? boxNumber
+      ? `${holder.name} · box ${boxNumber}`
+      : holder.name
+    : 'No member'
   return (
     <article className="space-y-3 rounded-3xl bg-[#14382c] p-4">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <Avatar player={holder} size="md" />
           <div className="min-w-0">
-            <p className="truncate font-bold">{holder?.name ?? 'No member'}</p>
+            <p className="truncate font-bold">{title}</p>
             <p className="text-xs text-[#9bb5a8]">
               {remaining} left · {box.used} used
             </p>
