@@ -55,6 +55,17 @@ export type PlayerStat = {
   attendanceDays: number
 }
 
+export const SHUTTLES_PER_BOX = 6
+
+export type ShuttleBox = {
+  id: string
+  holder_id: string | null
+  used: number
+  opened_on: string
+  closed_at: string | null
+  created_at: string
+}
+
 export function matchPlayerIds(match: Match | MatchDraft): string[] {
   return [match.team_a_1, match.team_a_2, match.team_b_1, match.team_b_2]
 }

@@ -3,21 +3,27 @@ import type { ReactNode } from 'react'
 import {
   createMatch as apiCreateMatch,
   createPlayer as apiCreatePlayer,
+  createShuttleBox as apiCreateShuttleBox,
   dataMode,
   deleteMatch as apiDeleteMatch,
   deletePlayer as apiDeletePlayer,
   fetchMatches,
   fetchPlayers,
+  fetchShuttleBoxes,
   updatePlayer as apiUpdatePlayer,
+  updateShuttleBox as apiUpdateShuttleBox,
 } from '../lib/api'
-import type { Match, MatchDraft, Player, PlayerDraft } from '../lib/types'
+import { SHUTTLES_PER_BOX } from '../lib/types'
+import type { Match, MatchDraft, Player, PlayerDraft, ShuttleBox } from '../lib/types'
 
 type DataContextValue = {
   ready: boolean
   mode: 'supabase' | 'local'
   error: string | null
+  shuttleError: string | null
   players: Player[]
   matches: Match[]
+  shuttleBoxes: ShuttleBox[]
   refresh: () => Promise<void>
   addPlayer: (draft: PlayerDraft) => Promise<void>
   editPlayer: (
@@ -27,15 +33,26 @@ type DataContextValue = {
   removePlayer: (id: string) => Promise<void>
   addMatch: (draft: MatchDraft) => Promise<void>
   removeMatch: (id: string) => Promise<void>
+  openShuttleBox: (holderId: string | null) => Promise<void>
+  setShuttleHolder: (boxId: string, holderId: string | null) => Promise<void>
+  useShuttle: (boxId: string) => Promise<void>
+  undoShuttle: (boxId: string) => Promise<void>
 }
 
 const DataContext = createContext<DataContextValue | null>(null)
 
+function isMissingShuttleTable(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err)
+  return /shuttle_boxes/i.test(message) && /does not exist|schema cache|could not find/i.test(message)
+}
+
 export function DataProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [shuttleError, setShuttleError] = useState<string | null>(null)
   const [players, setPlayers] = useState<Player[]>([])
   const [matches, setMatches] = useState<Match[]>([])
+  const [shuttleBoxes, setShuttleBoxes] = useState<ShuttleBox[]>([])
 
   const refresh = useCallback(async () => {
     try {
@@ -43,6 +60,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setPlayers(nextPlayers)
       setMatches(nextMatches)
       setError(null)
+
+      try {
+        const nextBoxes = await fetchShuttleBoxes()
+        setShuttleBoxes(nextBoxes)
+        setShuttleError(null)
+      } catch (err) {
+        setShuttleBoxes([])
+        setShuttleError(
+          isMissingShuttleTable(err)
+            ? 'Shuttle table is missing. Run supabase/shuttle.sql in the Supabase SQL Editor, then refresh.'
+            : err instanceof Error
+              ? err.message
+              : 'Could not load shuttle boxes',
+        )
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load data')
     } finally {
@@ -102,31 +134,87 @@ export function DataProvider({ children }: { children: ReactNode }) {
     [refresh],
   )
 
+  const openShuttleBox = useCallback(
+    async (holderId: string | null) => {
+      const open = shuttleBoxes.find((box) => box.closed_at === null)
+      if (open) {
+        await apiUpdateShuttleBox(open.id, { closed_at: new Date().toISOString() })
+      }
+      await apiCreateShuttleBox(holderId)
+      await refresh()
+    },
+    [refresh, shuttleBoxes],
+  )
+
+  const setShuttleHolder = useCallback(
+    async (boxId: string, holderId: string | null) => {
+      await apiUpdateShuttleBox(boxId, { holder_id: holderId })
+      await refresh()
+    },
+    [refresh],
+  )
+
+  const useShuttle = useCallback(
+    async (boxId: string) => {
+      const box = shuttleBoxes.find((item) => item.id === boxId)
+      if (!box || box.closed_at || box.used >= SHUTTLES_PER_BOX) return
+      const used = box.used + 1
+      await apiUpdateShuttleBox(boxId, {
+        used,
+        closed_at: used >= SHUTTLES_PER_BOX ? new Date().toISOString() : null,
+      })
+      await refresh()
+    },
+    [refresh, shuttleBoxes],
+  )
+
+  const undoShuttle = useCallback(
+    async (boxId: string) => {
+      const box = shuttleBoxes.find((item) => item.id === boxId)
+      if (!box || box.used <= 0) return
+      await apiUpdateShuttleBox(boxId, { used: box.used - 1, closed_at: null })
+      await refresh()
+    },
+    [refresh, shuttleBoxes],
+  )
+
   const value = useMemo(
     () => ({
       ready,
       mode: dataMode,
       error,
+      shuttleError,
       players,
       matches,
+      shuttleBoxes,
       refresh,
       addPlayer,
       editPlayer,
       removePlayer,
       addMatch,
       removeMatch,
+      openShuttleBox,
+      setShuttleHolder,
+      useShuttle,
+      undoShuttle,
     }),
     [
       ready,
       error,
+      shuttleError,
       players,
       matches,
+      shuttleBoxes,
       refresh,
       addPlayer,
       editPlayer,
       removePlayer,
       addMatch,
       removeMatch,
+      openShuttleBox,
+      setShuttleHolder,
+      useShuttle,
+      undoShuttle,
     ],
   )
 

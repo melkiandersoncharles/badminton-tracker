@@ -1,10 +1,10 @@
 import { Link } from 'react-router-dom'
 import { useData } from '../context/DataContext'
 import { formatDay } from '../lib/dates'
-import { attendanceForDay, daysWithMatches } from '../lib/stats'
+import { daysWithMatches, membersPresentForDay } from '../lib/stats'
 
 export function HistoryScreen() {
-  const { matches } = useData()
+  const { matches, players } = useData()
   const days = daysWithMatches(matches)
 
   return (
@@ -21,7 +21,7 @@ export function HistoryScreen() {
         <ul className="space-y-2">
           {days.map((day) => {
             const dayMatches = matches.filter((match) => match.played_on === day)
-            const present = attendanceForDay(matches, day).length
+            const present = membersPresentForDay(matches, players, day).length
             return (
               <li key={day}>
                 <Link
@@ -31,7 +31,7 @@ export function HistoryScreen() {
                   <div>
                     <p className="font-semibold">{formatDay(day)}</p>
                     <p className="text-xs text-[#9bb5a8]">
-                      {dayMatches.length} match{dayMatches.length === 1 ? '' : 'es'} · {present} present
+                      {dayMatches.length} match{dayMatches.length === 1 ? '' : 'es'} · {present} members
                     </p>
                   </div>
                   <span className="text-[#f0c14b]">→</span>

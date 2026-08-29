@@ -3,16 +3,14 @@ import { AttendanceGrid } from '../components/AttendanceGrid'
 import { MatchCard } from '../components/MatchCard'
 import { useData } from '../context/DataContext'
 import { formatDayLong } from '../lib/dates'
-import { attendanceForDay, playerById } from '../lib/stats'
+import { membersPresentForDay } from '../lib/stats'
 
 export function DayScreen() {
   const { date } = useParams()
   const { matches, players, removeMatch } = useData()
   const day = date ?? ''
   const dayMatches = matches.filter((match) => match.played_on === day)
-  const present = attendanceForDay(matches, day)
-    .map((id) => playerById(players, id))
-    .filter((player): player is NonNullable<typeof player> => Boolean(player))
+  const present = membersPresentForDay(matches, players, day)
 
   if (!day) {
     return <p className="text-sm text-[#9bb5a8]">Missing date</p>
@@ -28,7 +26,7 @@ export function DayScreen() {
       </header>
 
       <section>
-        <h2 className="mb-3 text-base font-bold">Attendance · {present.length}</h2>
+        <h2 className="mb-3 text-base font-bold">Members present · {present.length}</h2>
         <AttendanceGrid players={present} />
       </section>
 

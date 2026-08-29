@@ -6,7 +6,7 @@ export function AttendanceGrid({ players }: { players: Player[] }) {
   if (players.length === 0) {
     return (
       <p className="rounded-2xl border border-dashed border-[#d7ecd0]/20 px-4 py-6 text-center text-sm text-[#9bb5a8]">
-        No one marked present yet. Save a match and those four players show up here.
+        No members marked present yet. Save a match with members and they show up here.
       </p>
     )
   }

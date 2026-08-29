@@ -80,7 +80,7 @@ Send them:
 - The Vercel link
 - PIN **2580**
 
-They open the link → type **2580** → use **Today / Players / Board**.
+They open the link → type **2580** → use **Today / Shuttle / Players / Board**.
 
 On a phone, add a home-screen icon:
 
@@ -103,12 +103,14 @@ Then restart `npm run dev`. The yellow “this phone only” banner should disap
 
 - PIN keypad never appears → `VITE_GROUP_PIN` is missing on Vercel; add it and **Redeploy**.
 - Yellow banner / data not shared → Supabase URL or anon key is wrong, or schema.sql was not run.
+- Shuttle tab says the table is missing → paste and run `supabase/shuttle.sql` in the SQL Editor, then refresh.
 - Photo upload fails → confirm the `player-photos` bucket exists (schema.sql creates it).
 - Page not found on a player URL → `vercel.json` is in the repo; redeploy after the first GitHub push.
 
 ## Notes
 
 - Doubles only, one game per match. Winner is the higher score.
-- Attendance is whoever appeared in a match that day.
+- Attendance is members who appeared in a match that day.
+- Shuttle tab tracks a box of 6: remaining, used, and who is holding it.
 - Tap a player’s name or photo for their wins, partners, and match list.
 - Photos are resized on the phone before upload.

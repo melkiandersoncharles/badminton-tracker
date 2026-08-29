@@ -1,9 +1,11 @@
 import { blobToDataUrl, resizeImage } from './photo'
 import { isSupabaseConfigured, supabase } from './supabase'
-import type { Match, MatchDraft, Player, PlayerDraft } from './types'
+import type { Match, MatchDraft, Player, PlayerDraft, ShuttleBox } from './types'
+import { SHUTTLES_PER_BOX } from './types'
 
 const PLAYERS_KEY = 'bt-players'
 const MATCHES_KEY = 'bt-matches'
+const SHUTTLES_KEY = 'bt-shuttle-boxes'
 
 export const dataMode: 'supabase' | 'local' = isSupabaseConfigured ? 'supabase' : 'local'
 
@@ -159,4 +161,61 @@ export async function deleteMatch(id: string): Promise<void> {
     MATCHES_KEY,
     readLocal<Match[]>(MATCHES_KEY, []).filter((match) => match.id !== id),
   )
+}
+
+function sortBoxes(boxes: ShuttleBox[]): ShuttleBox[] {
+  return [...boxes].sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
+}
+
+export async function fetchShuttleBoxes(): Promise<ShuttleBox[]> {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from('shuttle_boxes')
+      .select('*')
+      .order('created_at', { ascending: false })
+    if (error) throw error
+    return (data ?? []) as ShuttleBox[]
+  }
+  return sortBoxes(readLocal<ShuttleBox[]>(SHUTTLES_KEY, []))
+}
+
+export async function createShuttleBox(holderId: string | null): Promise<ShuttleBox> {
+  const box: ShuttleBox = {
+    id: crypto.randomUUID(),
+    holder_id: holderId,
+    used: 0,
+    opened_on: new Date().toISOString().slice(0, 10),
+    closed_at: null,
+    created_at: new Date().toISOString(),
+  }
+
+  if (supabase) {
+    const { error } = await supabase.from('shuttle_boxes').insert(box)
+    if (error) throw error
+    return box
+  }
+
+  writeLocal(SHUTTLES_KEY, [box, ...readLocal<ShuttleBox[]>(SHUTTLES_KEY, [])])
+  return box
+}
+
+export async function updateShuttleBox(
+  id: string,
+  patch: { used?: number; holder_id?: string | null; closed_at?: string | null },
+): Promise<void> {
+  const updates: Partial<ShuttleBox> = { ...patch }
+  if (updates.used !== undefined) {
+    updates.used = Math.max(0, Math.min(SHUTTLES_PER_BOX, updates.used))
+  }
+
+  if (supabase) {
+    const { error } = await supabase.from('shuttle_boxes').update(updates).eq('id', id)
+    if (error) throw error
+    return
+  }
+
+  const boxes = readLocal<ShuttleBox[]>(SHUTTLES_KEY, []).map((box) =>
+    box.id === id ? { ...box, ...updates } : box,
+  )
+  writeLocal(SHUTTLES_KEY, boxes)
 }

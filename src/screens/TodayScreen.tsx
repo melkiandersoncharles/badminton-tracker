@@ -3,15 +3,13 @@ import { AttendanceGrid } from '../components/AttendanceGrid'
 import { MatchCard } from '../components/MatchCard'
 import { useData } from '../context/DataContext'
 import { formatDayLong, todayISO } from '../lib/dates'
-import { attendanceForDay, playerById } from '../lib/stats'
+import { membersPresentForDay } from '../lib/stats'
 
 export function TodayScreen() {
   const { matches, players, removeMatch } = useData()
   const day = todayISO()
   const todays = matches.filter((match) => match.played_on === day)
-  const present = attendanceForDay(matches, day)
-    .map((id) => playerById(players, id))
-    .filter((player): player is NonNullable<typeof player> => Boolean(player))
+  const present = membersPresentForDay(matches, players, day)
 
   return (
     <div className="space-y-5">
@@ -20,7 +18,7 @@ export function TodayScreen() {
           <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#f0c14b]">On court</p>
           <h1 className="mt-1 text-2xl font-bold">{formatDayLong(day)}</h1>
           <p className="mt-1 text-sm text-[#9bb5a8]">
-            {todays.length === 1 ? '1 match' : `${todays.length} matches`} · {present.length} present
+            {todays.length === 1 ? '1 match' : `${todays.length} matches`} · {present.length} members
           </p>
         </div>
         <Link
@@ -32,7 +30,7 @@ export function TodayScreen() {
       </header>
 
       <section>
-        <h2 className="mb-3 text-base font-bold">Today’s attendance</h2>
+        <h2 className="mb-3 text-base font-bold">Today’s attendance (members)</h2>
         <AttendanceGrid players={present} />
       </section>
 

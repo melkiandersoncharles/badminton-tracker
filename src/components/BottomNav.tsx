@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom'
 
 const items = [
   { to: '/', label: 'Today', icon: TodayIcon, end: true },
+  { to: '/shuttle', label: 'Shuttle', icon: ShuttleIcon, end: false },
   { to: '/history', label: 'History', icon: HistoryIcon, end: false },
   { to: '/board', label: 'Board', icon: BoardIcon, end: false },
   { to: '/players', label: 'Players', icon: PlayersIcon, end: false },
@@ -10,7 +11,7 @@ const items = [
 export function BottomNav() {
   return (
     <nav className="shrink-0 border-t border-[#d7ecd0]/15 bg-[#0c1f18] pb-[env(safe-area-inset-bottom)]">
-      <ul className="grid grid-cols-4">
+      <ul className="grid grid-cols-5">
         {items.map((item) => (
           <li key={item.to}>
             <NavLink
@@ -37,6 +38,19 @@ function TodayIcon() {
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <rect x="4" y="5" width="16" height="14" rx="2" stroke="currentColor" strokeWidth="1.8" />
       <path d="M4 10h16M12 5v14" stroke="currentColor" strokeWidth="1.8" />
+    </svg>
+  )
+}
+
+function ShuttleIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M12 3v4M8 5.5 12 7l4-1.5M7 9h10l-1.2 8.5a4 4 0 0 1-7.6 0L7 9Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
     </svg>
   )
 }

@@ -13,6 +13,12 @@ export function attendanceForDay(matches: Match[], day: string): string[] {
   return [...ids]
 }
 
+export function membersPresentForDay(matches: Match[], players: Player[], day: string): Player[] {
+  return attendanceForDay(matches, day)
+    .map((id) => playerById(players, id))
+    .filter((player): player is Player => player !== undefined && !player.is_guest)
+}
+
 export function daysWithMatches(matches: Match[]): string[] {
   const days = new Set(matches.map((match) => match.played_on))
   return [...days].sort((a, b) => (a < b ? 1 : -1))
