@@ -20,7 +20,10 @@ export function membersPresentForDay(matches: Match[], players: Player[], day: s
 }
 
 export function matchesInRange(matches: Match[], start: string, end: string): Match[] {
-  return matches.filter((match) => match.played_on >= start && match.played_on <= end)
+  return matches.filter((match) => {
+    const day = match.played_on.slice(0, 10)
+    return day >= start && day <= end
+  })
 }
 
 export function membersPresentInRange(matches: Match[], players: Player[], start: string, end: string): Player[] {

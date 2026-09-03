@@ -9,7 +9,7 @@ import { bestPair, bestPerformer, matchesInRange, membersPresentForDay } from '.
 export function TodayScreen() {
   const { matches, players, removeMatch } = useData()
   const day = todayISO()
-  const todays = matches.filter((match) => match.played_on === day)
+  const todays = matches.filter((match) => match.played_on.slice(0, 10) === day)
   const present = membersPresentForDay(matches, players, day)
   const recap = todayRecapPeriod()
   const recapMatches = matchesInRange(matches, recap.start, recap.end)
