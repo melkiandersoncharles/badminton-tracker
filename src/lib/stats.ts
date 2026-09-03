@@ -143,3 +143,56 @@ export function partnerStats(playerId: string, matches: Match[], players: Player
 export function playerById(players: Player[], id: string): Player | undefined {
   return players.find((player) => player.id === id)
 }
+
+function pairKey(left: string, right: string): string {
+  return left < right ? `${left}|${right}` : `${right}|${left}`
+}
+
+export function bestPerformer(players: Player[], matches: Match[]): LeaderboardRow | null {
+  const row = buildLeaderboard(players, matches, 'all').find((item) => item.matches > 0)
+  return row ?? null
+}
+
+export type PairRow = {
+  a: Player
+  b: Player
+  together: number
+  wins: number
+}
+
+export function bestPair(players: Player[], matches: Match[]): PairRow | null {
+  const map = new Map<string, { together: number; wins: number }>()
+
+  for (const match of matches) {
+    const pairs: [string, string][] = [
+      [match.team_a_1, match.team_a_2],
+      [match.team_b_1, match.team_b_2],
+    ]
+    const winner = winnerOf(match)
+    pairs.forEach(([left, right], index) => {
+      const key = pairKey(left, right)
+      const entry = map.get(key) ?? { together: 0, wins: 0 }
+      entry.together += 1
+      const side = index === 0 ? 'a' : 'b'
+      if (winner === side) entry.wins += 1
+      map.set(key, entry)
+    })
+  }
+
+  const ranked = [...map.entries()]
+    .map(([key, stats]) => {
+      const [idA, idB] = key.split('|')
+      const a = playerById(players, idA)
+      const b = playerById(players, idB)
+      if (!a || !b) return null
+      return { a, b, together: stats.together, wins: stats.wins }
+    })
+    .filter((row): row is PairRow => row !== null)
+    .sort((left, right) => {
+      if (right.wins !== left.wins) return right.wins - left.wins
+      if (right.together !== left.together) return right.together - left.together
+      return `${left.a.name}${left.b.name}`.localeCompare(`${right.a.name}${right.b.name}`)
+    })
+
+  return ranked[0] ?? null
+}

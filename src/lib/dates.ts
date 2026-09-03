@@ -41,16 +41,22 @@ export function formatMonthLabel(key: string): string {
   })
 }
 
-export function isRestDay(date = new Date()): boolean {
-  const weekday = date.getDay()
-  return weekday === 0 || weekday === 6
+export function yesterdayISO(date = new Date()): string {
+  const previous = new Date(date.getFullYear(), date.getMonth(), date.getDate() - 1)
+  return todayISO(previous)
 }
 
-/** Monday–Friday of the current week (the sessions that just finished on a rest day). */
-export function lastPlayingWeek(date = new Date()): { start: string; end: string } {
+function mondayOfContainingWeek(date: Date): Date {
   const weekday = date.getDay()
   const daysFromMonday = weekday === 0 ? 6 : weekday - 1
-  const monday = new Date(date.getFullYear(), date.getMonth(), date.getDate() - daysFromMonday)
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() - daysFromMonday)
+}
+
+/** Monday–Friday of the playing week that just finished. */
+export function lastPlayingWeek(date = new Date()): { start: string; end: string } {
+  const weekday = date.getDay()
+  const monday = mondayOfContainingWeek(date)
+  if (weekday === 1) monday.setDate(monday.getDate() - 7)
   const friday = new Date(monday)
   friday.setDate(monday.getDate() + 4)
   return { start: todayISO(monday), end: todayISO(friday) }
@@ -58,4 +64,32 @@ export function lastPlayingWeek(date = new Date()): { start: string; end: string
 
 export function formatDayRange(start: string, end: string): string {
   return `${formatDay(start)} – ${formatDay(end)}`
+}
+
+export type RecapPeriod = {
+  kind: 'yesterday' | 'week'
+  start: string
+  end: string
+  label: string
+}
+
+/** Sat/Sun/Mon → last week. Tue–Fri → yesterday. */
+export function todayRecapPeriod(date = new Date()): RecapPeriod {
+  const weekday = date.getDay()
+  if (weekday === 0 || weekday === 1 || weekday === 6) {
+    const week = lastPlayingWeek(date)
+    return {
+      kind: 'week',
+      start: week.start,
+      end: week.end,
+      label: `Last week · ${formatDayRange(week.start, week.end)}`,
+    }
+  }
+  const yesterday = yesterdayISO(date)
+  return {
+    kind: 'yesterday',
+    start: yesterday,
+    end: yesterday,
+    label: `Yesterday · ${formatDay(yesterday)}`,
+  }
 }

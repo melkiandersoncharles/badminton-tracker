@@ -1,21 +1,19 @@
 import { Link } from 'react-router-dom'
 import { AttendanceGrid } from '../components/AttendanceGrid'
 import { MatchCard } from '../components/MatchCard'
-import { WeekRecap } from '../components/WeekRecap'
+import { RecapHighlights } from '../components/RecapHighlights'
 import { useData } from '../context/DataContext'
-import { formatDayLong, isRestDay, todayISO } from '../lib/dates'
-import { membersPresentForDay } from '../lib/stats'
+import { formatDayLong, todayISO, todayRecapPeriod } from '../lib/dates'
+import { bestPair, bestPerformer, matchesInRange, membersPresentForDay } from '../lib/stats'
 
 export function TodayScreen() {
-  if (isRestDay()) return <WeekRecap />
-  return <PlayDay />
-}
-
-function PlayDay() {
   const { matches, players, removeMatch } = useData()
   const day = todayISO()
   const todays = matches.filter((match) => match.played_on === day)
   const present = membersPresentForDay(matches, players, day)
+  const recap = todayRecapPeriod()
+  const recapMatches = matchesInRange(matches, recap.start, recap.end)
+  const showRecap = todays.length === 0
 
   return (
     <div className="space-y-5">
@@ -34,6 +32,14 @@ function PlayDay() {
           Add match
         </Link>
       </header>
+
+      {showRecap ? (
+        <RecapHighlights
+          period={recap}
+          performer={bestPerformer(players, recapMatches)}
+          pair={bestPair(players, recapMatches)}
+        />
+      ) : null}
 
       <section>
         <h2 className="mb-3 text-base font-bold">Today’s attendance (members)</h2>
