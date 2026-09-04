@@ -67,7 +67,7 @@ export function formatDayRange(start: string, end: string): string {
 }
 
 export type RecapPeriod = {
-  kind: 'yesterday' | 'week'
+  kind: 'yesterday' | 'week' | 'today'
   start: string
   end: string
   label: string

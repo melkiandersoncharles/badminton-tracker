@@ -111,7 +111,7 @@ Then restart `npm run dev`. The yellow “this phone only” banner should disap
 
 - Doubles only, one game per match. Winner is the higher score.
 - Attendance is members who appeared in a match that day.
-- On Today, before any match is logged: Sat/Sun/Mon show last week’s best performer and best pair; Tue–Fri show yesterday’s. That recap hides once you add today’s first match.
+- On Today, before any match is logged: Sat/Sun/Mon show last week’s best; Tue–Fri show yesterday’s. After the first match today, that becomes today’s match count, best player, and best team.
 - Shuttle tab: any number of boxes (6 shuttles each). Each box belongs to a member; one member can hold several boxes.
 - Tap a player’s name or photo for their wins, partners, and match list.
 - Photos are resized on the phone before upload.

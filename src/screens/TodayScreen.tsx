@@ -13,7 +13,12 @@ export function TodayScreen() {
   const present = membersPresentForDay(matches, players, day)
   const recap = todayRecapPeriod()
   const recapMatches = matchesInRange(matches, recap.start, recap.end)
-  const showRecap = todays.length === 0
+  const livePeriod = {
+    kind: 'today' as const,
+    start: day,
+    end: day,
+    label: 'Updates as you add matches',
+  }
 
   return (
     <div className="space-y-5">
@@ -33,13 +38,20 @@ export function TodayScreen() {
         </Link>
       </header>
 
-      {showRecap ? (
+      {todays.length === 0 ? (
         <RecapHighlights
           period={recap}
           performer={bestPerformer(players, recapMatches)}
           pair={bestPair(players, recapMatches)}
         />
-      ) : null}
+      ) : (
+        <RecapHighlights
+          period={livePeriod}
+          matchCount={todays.length}
+          performer={bestPerformer(players, todays)}
+          pair={bestPair(players, todays)}
+        />
+      )}
 
       <section>
         <h2 className="mb-3 text-base font-bold">Today’s attendance (members)</h2>
