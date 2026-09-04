@@ -2,7 +2,8 @@ import { Link } from 'react-router-dom'
 import { Avatar } from './Avatar'
 import { PlayerLink } from './PlayerLink'
 import type { RecapPeriod } from '../lib/dates'
-import type { LeaderboardRow, PairRow } from '../lib/stats'
+import type { PairRow } from '../lib/stats'
+import type { LeaderboardRow } from '../lib/types'
 
 export function RecapHighlights({
   period,

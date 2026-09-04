@@ -185,6 +185,7 @@ export function bestPair(players: Player[], matches: Match[]): PairRow | null {
   const ranked = [...map.entries()]
     .map(([key, stats]) => {
       const [idA, idB] = key.split('|')
+      if (!idA || !idB) return null
       const a = playerById(players, idA)
       const b = playerById(players, idB)
       if (!a || !b) return null
