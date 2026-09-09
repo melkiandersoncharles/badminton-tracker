@@ -13,6 +13,17 @@ export function currentMonthKey(): string {
   return monthKey(todayISO())
 }
 
+export function formatDateTime(iso: string): string {
+  const date = new Date(iso)
+  return date.toLocaleString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+}
+
 export function formatDay(isoDate: string): string {
   const [y, m, d] = isoDate.split('-').map(Number)
   const date = new Date(y, m - 1, d)

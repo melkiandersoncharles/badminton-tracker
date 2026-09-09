@@ -1,10 +1,12 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { clearOperatorId } from '../lib/operator'
 
 const STORAGE_KEY = 'bt-pin-ok'
 export const GROUP_PIN = import.meta.env.VITE_GROUP_PIN?.trim() ?? ''
 
 export function lockClub() {
   sessionStorage.removeItem(STORAGE_KEY)
+  clearOperatorId()
   window.location.reload()
 }
 

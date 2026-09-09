@@ -1,11 +1,13 @@
 import { blobToDataUrl, resizeImage } from './photo'
 import { isSupabaseConfigured, supabase } from './supabase'
-import type { Match, MatchDraft, Player, PlayerDraft, ShuttleBox } from './types'
+import { getOperatorId } from './operator'
+import type { ActivityEntry, Match, MatchDraft, Player, PlayerDraft, ShuttleBox } from './types'
 import { SHUTTLES_PER_BOX } from './types'
 
 const PLAYERS_KEY = 'bt-players'
 const MATCHES_KEY = 'bt-matches'
 const SHUTTLES_KEY = 'bt-shuttle-boxes'
+const ACTIVITY_KEY = 'bt-activity'
 
 export const dataMode: 'supabase' | 'local' = isSupabaseConfigured ? 'supabase' : 'local'
 
@@ -218,4 +220,38 @@ export async function updateShuttleBox(
     box.id === id ? { ...box, ...updates } : box,
   )
   writeLocal(SHUTTLES_KEY, boxes)
+}
+
+export async function fetchActivities(): Promise<ActivityEntry[]> {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from('activity_log')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(200)
+    if (error) throw error
+    return (data ?? []) as ActivityEntry[]
+  }
+  return readLocal<ActivityEntry[]>(ACTIVITY_KEY, []).sort((a, b) =>
+    a.created_at < b.created_at ? 1 : -1,
+  )
+}
+
+export async function logActivity(action: string, details: string): Promise<void> {
+  const entry: ActivityEntry = {
+    id: crypto.randomUUID(),
+    actor_id: getOperatorId(),
+    action,
+    details,
+    created_at: new Date().toISOString(),
+  }
+
+  if (supabase) {
+    const { error } = await supabase.from('activity_log').insert(entry)
+    if (error) throw error
+    return
+  }
+
+  const items = [entry, ...readLocal<ActivityEntry[]>(ACTIVITY_KEY, [])].slice(0, 200)
+  writeLocal(ACTIVITY_KEY, items)
 }

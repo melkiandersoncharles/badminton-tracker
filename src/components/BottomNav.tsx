@@ -5,13 +5,14 @@ const items = [
   { to: '/shuttle', label: 'Shuttle', icon: ShuttleIcon, end: false },
   { to: '/history', label: 'History', icon: HistoryIcon, end: false },
   { to: '/board', label: 'Board', icon: BoardIcon, end: false },
+  { to: '/activity', label: 'Activity', icon: ActivityIcon, end: false },
   { to: '/players', label: 'Players', icon: PlayersIcon, end: false },
 ]
 
 export function BottomNav() {
   return (
     <nav className="shrink-0 border-t border-[#d7ecd0]/15 bg-[#0c1f18] pb-[env(safe-area-inset-bottom)]">
-      <ul className="grid grid-cols-5">
+      <ul className="grid grid-cols-6">
         {items.map((item) => (
           <li key={item.to}>
             <NavLink
@@ -68,6 +69,20 @@ function BoardIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path d="M7 20V10M12 20V4M17 20v-7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function ActivityIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M5 7h14M5 12h10M5 17h12"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <circle cx="19" cy="17" r="2" stroke="currentColor" strokeWidth="1.8" />
     </svg>
   )
 }

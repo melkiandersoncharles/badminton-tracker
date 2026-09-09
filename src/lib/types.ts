@@ -84,3 +84,11 @@ export function winnerOf(match: Match): 'a' | 'b' | 'draw' {
   if (match.score_a === match.score_b) return 'draw'
   return match.score_a > match.score_b ? 'a' : 'b'
 }
+
+export type ActivityEntry = {
+  id: string
+  actor_id: string | null
+  action: string
+  details: string
+  created_at: string
+}

@@ -7,23 +7,27 @@ import {
   dataMode,
   deleteMatch as apiDeleteMatch,
   deletePlayer as apiDeletePlayer,
+  fetchActivities,
   fetchMatches,
   fetchPlayers,
   fetchShuttleBoxes,
+  logActivity,
   updatePlayer as apiUpdatePlayer,
   updateShuttleBox as apiUpdateShuttleBox,
 } from '../lib/api'
 import { SHUTTLES_PER_BOX } from '../lib/types'
-import type { Match, MatchDraft, Player, PlayerDraft, ShuttleBox } from '../lib/types'
+import type { ActivityEntry, Match, MatchDraft, Player, PlayerDraft, ShuttleBox } from '../lib/types'
 
 type DataContextValue = {
   ready: boolean
   mode: 'supabase' | 'local'
   error: string | null
   shuttleError: string | null
+  activityError: string | null
   players: Player[]
   matches: Match[]
   shuttleBoxes: ShuttleBox[]
+  activities: ActivityEntry[]
   refresh: () => Promise<void>
   addPlayer: (draft: PlayerDraft) => Promise<void>
   editPlayer: (
@@ -42,18 +46,32 @@ type DataContextValue = {
 
 const DataContext = createContext<DataContextValue | null>(null)
 
-function isMissingShuttleTable(err: unknown): boolean {
+function isMissingTable(err: unknown, table: string): boolean {
   const message = err instanceof Error ? err.message : String(err)
-  return /shuttle_boxes/i.test(message) && /does not exist|schema cache|could not find/i.test(message)
+  return new RegExp(table, 'i').test(message) && /does not exist|schema cache|could not find/i.test(message)
+}
+
+function playerName(players: Player[], id: string): string {
+  return players.find((player) => player.id === id)?.name ?? 'Unknown'
+}
+
+function matchSummary(players: Player[], draft: MatchDraft): string {
+  const a1 = playerName(players, draft.team_a_1)
+  const a2 = playerName(players, draft.team_a_2)
+  const b1 = playerName(players, draft.team_b_1)
+  const b2 = playerName(players, draft.team_b_2)
+  return `Court ${draft.court} · ${a1} & ${a2} ${draft.score_a}–${draft.score_b} ${b1} & ${b2}`
 }
 
 export function DataProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [shuttleError, setShuttleError] = useState<string | null>(null)
+  const [activityError, setActivityError] = useState<string | null>(null)
   const [players, setPlayers] = useState<Player[]>([])
   const [matches, setMatches] = useState<Match[]>([])
   const [shuttleBoxes, setShuttleBoxes] = useState<ShuttleBox[]>([])
+  const [activities, setActivities] = useState<ActivityEntry[]>([])
 
   const refresh = useCallback(async () => {
     try {
@@ -69,11 +87,26 @@ export function DataProvider({ children }: { children: ReactNode }) {
       } catch (err) {
         setShuttleBoxes([])
         setShuttleError(
-          isMissingShuttleTable(err)
+          isMissingTable(err, 'shuttle_boxes')
             ? 'Shuttle table is missing. Run supabase/shuttle.sql in the Supabase SQL Editor, then refresh.'
             : err instanceof Error
               ? err.message
               : 'Could not load shuttle boxes',
+        )
+      }
+
+      try {
+        const nextActivities = await fetchActivities()
+        setActivities(nextActivities)
+        setActivityError(null)
+      } catch (err) {
+        setActivities([])
+        setActivityError(
+          isMissingTable(err, 'activity_log')
+            ? 'Activity table is missing. Run supabase/activity.sql in the Supabase SQL Editor, then refresh.'
+            : err instanceof Error
+              ? err.message
+              : 'Could not load activity',
         )
       }
     } catch (err) {
@@ -95,6 +128,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const addPlayer = useCallback(
     async (draft: PlayerDraft) => {
       await apiCreatePlayer(draft)
+      await logActivity('player_add', `Added ${draft.is_guest ? 'guest' : 'member'} ${draft.name}`)
       await refresh()
     },
     [refresh],
@@ -105,44 +139,56 @@ export function DataProvider({ children }: { children: ReactNode }) {
       id: string,
       patch: { name?: string; is_guest?: boolean; photoFile?: File | null },
     ) => {
+      const before = players.find((player) => player.id === id)
       await apiUpdatePlayer(id, patch)
+      const label = patch.name ?? before?.name ?? 'player'
+      const kind = (patch.is_guest ?? before?.is_guest) ? 'guest' : 'member'
+      await logActivity('player_edit', `Updated ${kind} ${label}`)
       await refresh()
     },
-    [refresh],
+    [players, refresh],
   )
 
   const removePlayer = useCallback(
     async (id: string) => {
+      const before = players.find((player) => player.id === id)
       await apiDeletePlayer(id)
+      await logActivity('player_delete', `Removed ${before?.name ?? 'player'}`)
       await refresh()
     },
-    [refresh],
+    [players, refresh],
   )
 
   const addMatch = useCallback(
     async (draft: MatchDraft) => {
       await apiCreateMatch(draft)
+      await logActivity('match_add', matchSummary(players, draft))
       await refresh()
     },
-    [refresh],
+    [players, refresh],
   )
 
   const removeMatch = useCallback(
     async (id: string) => {
+      const before = matches.find((match) => match.id === id)
+      if (before) {
+        await logActivity('match_delete', matchSummary(players, before))
+      }
       await apiDeleteMatch(id)
       await refresh()
     },
-    [refresh],
+    [matches, players, refresh],
   )
 
   const addShuttleBox = useCallback(
     async (holderId: string) => {
       try {
         await apiCreateShuttleBox(holderId)
+        await logActivity('shuttle_add', `Opened box for ${playerName(players, holderId)}`)
         await refresh()
       } catch (err) {
         setShuttleError(
-          isMissingShuttleTable(err)
+          isMissingTable(err, 'shuttle_boxes')
             ? 'Shuttle table is missing. Run supabase/shuttle.sql in the Supabase SQL Editor, then refresh.'
             : err instanceof Error
               ? err.message
@@ -150,43 +196,52 @@ export function DataProvider({ children }: { children: ReactNode }) {
         )
       }
     },
-    [refresh],
+    [players, refresh],
   )
 
   const closeShuttleBox = useCallback(
     async (boxId: string) => {
+      const box = shuttleBoxes.find((item) => item.id === boxId)
+      const holder = box?.holder_id ? playerName(players, box.holder_id) : 'unassigned'
       await apiUpdateShuttleBox(boxId, { closed_at: new Date().toISOString() })
+      await logActivity('shuttle_close', `Closed box held by ${holder}`)
       await refresh()
     },
-    [refresh],
+    [players, refresh, shuttleBoxes],
   )
 
   const setBoxHolder = useCallback(
     async (boxId: string, holderId: string | null) => {
+      const holder = holderId ? playerName(players, holderId) : 'unassigned'
       await apiUpdateShuttleBox(boxId, { holder_id: holderId })
+      await logActivity('shuttle_holder', `Assigned box to ${holder}`)
       await refresh()
     },
-    [refresh],
+    [players, refresh],
   )
 
   const useShuttle = useCallback(
     async (boxId: string) => {
       const box = shuttleBoxes.find((item) => item.id === boxId)
       if (!box || box.closed_at || box.used >= SHUTTLES_PER_BOX) return
+      const holder = box.holder_id ? playerName(players, box.holder_id) : 'unassigned'
       await apiUpdateShuttleBox(boxId, { used: box.used + 1 })
+      await logActivity('shuttle_use', `Used shuttle from ${holder}'s box (${box.used + 1}/${SHUTTLES_PER_BOX})`)
       await refresh()
     },
-    [refresh, shuttleBoxes],
+    [players, refresh, shuttleBoxes],
   )
 
   const undoShuttle = useCallback(
     async (boxId: string) => {
       const box = shuttleBoxes.find((item) => item.id === boxId)
       if (!box || box.used <= 0) return
+      const holder = box.holder_id ? playerName(players, box.holder_id) : 'unassigned'
       await apiUpdateShuttleBox(boxId, { used: box.used - 1, closed_at: null })
+      await logActivity('shuttle_undo', `Undid shuttle on ${holder}'s box`)
       await refresh()
     },
-    [refresh, shuttleBoxes],
+    [players, refresh, shuttleBoxes],
   )
 
   const value = useMemo(
@@ -195,9 +250,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
       mode: dataMode,
       error,
       shuttleError,
+      activityError,
       players,
       matches,
       shuttleBoxes,
+      activities,
       refresh,
       addPlayer,
       editPlayer,
@@ -214,9 +271,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
       ready,
       error,
       shuttleError,
+      activityError,
       players,
       matches,
       shuttleBoxes,
+      activities,
       refresh,
       addPlayer,
       editPlayer,

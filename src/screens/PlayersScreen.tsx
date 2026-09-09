@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Avatar } from '../components/Avatar'
 import { GROUP_PIN, lockClub } from '../components/PinGate'
 import { useData } from '../context/DataContext'
+import { switchOperator } from '../lib/operator'
 import { matchPlayerIds } from '../lib/types'
 import type { Player } from '../lib/types'
 
@@ -26,6 +27,13 @@ export function PlayersScreen() {
           <h1 className="mt-1 text-2xl font-bold">Players</h1>
         </div>
         <div className="flex flex-wrap justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => switchOperator()}
+            className="rounded-full bg-[#1c4a3a] px-3 py-1.5 text-xs font-bold text-ink"
+          >
+            Switch user
+          </button>
           {GROUP_PIN ? (
             <button
               type="button"
