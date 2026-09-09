@@ -147,9 +147,9 @@ function StatTable({
         <thead>
           <tr className="border-b border-[#d7ecd0]/10 text-[10px] font-semibold uppercase tracking-wider text-[#9bb5a8]">
             <th className="px-3 py-2.5 text-left">Period</th>
+            <th className="px-2 py-2.5 text-right">M</th>
             <th className="px-2 py-2.5 text-right">W</th>
             <th className="px-2 py-2.5 text-right">L</th>
-            <th className="px-2 py-2.5 text-right">M</th>
             <th className="px-2 py-2.5 text-right">%</th>
             <th className="px-3 py-2.5 text-right">Days</th>
           </tr>
@@ -164,9 +164,9 @@ function StatTable({
                 <div>{row.title}</div>
                 {row.subtitle ? <div className="text-[10px] font-normal text-[#9bb5a8]">{row.subtitle}</div> : null}
               </td>
+              <td className="px-2 py-2.5 text-right tabular-nums">{row.stats.matches}</td>
               <td className="px-2 py-2.5 text-right tabular-nums">{row.stats.wins}</td>
               <td className="px-2 py-2.5 text-right tabular-nums">{row.stats.losses}</td>
-              <td className="px-2 py-2.5 text-right tabular-nums">{row.stats.matches}</td>
               <td className="px-2 py-2.5 text-right tabular-nums">{row.stats.winPct}</td>
               <td className="px-3 py-2.5 text-right tabular-nums">{row.stats.attendanceDays}</td>
             </tr>
