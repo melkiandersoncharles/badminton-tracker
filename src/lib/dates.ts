@@ -63,6 +63,23 @@ function mondayOfContainingWeek(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate() - daysFromMonday)
 }
 
+/** Monday–Friday of the week that contains the given date. */
+export function currentPlayingWeek(date = new Date()): { start: string; end: string } {
+  const monday = mondayOfContainingWeek(date)
+  const friday = new Date(monday)
+  friday.setDate(monday.getDate() + 4)
+  return { start: todayISO(monday), end: todayISO(friday) }
+}
+
+/** Monday–Friday of the week before the current playing week. */
+export function previousPlayingWeek(date = new Date()): { start: string; end: string } {
+  const monday = mondayOfContainingWeek(date)
+  monday.setDate(monday.getDate() - 7)
+  const friday = new Date(monday)
+  friday.setDate(monday.getDate() + 4)
+  return { start: todayISO(monday), end: todayISO(friday) }
+}
+
 /** Monday–Friday of the playing week that just finished. */
 export function lastPlayingWeek(date = new Date()): { start: string; end: string } {
   const weekday = date.getDay()

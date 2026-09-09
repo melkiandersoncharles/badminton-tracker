@@ -62,15 +62,7 @@ export function matchesForPlayer(playerId: string, matches: Match[]): Match[] {
   return matches.filter((match) => sideOf(match, playerId) !== null)
 }
 
-export function statsForPlayer(
-  playerId: string,
-  matches: Match[],
-  scope: 'all' | 'month' = 'all',
-): PlayerStat {
-  const month = currentMonthKey()
-  const scoped =
-    scope === 'month' ? matches.filter((match) => monthKey(match.played_on) === month) : matches
-
+function computePlayerStats(playerId: string, scoped: Match[]): PlayerStat {
   let wins = 0
   let losses = 0
   let played = 0
@@ -94,6 +86,45 @@ export function statsForPlayer(
     winPct: played === 0 ? 0 : Math.round((wins / played) * 100),
     attendanceDays: days.size,
   }
+}
+
+export function statsForPlayer(
+  playerId: string,
+  matches: Match[],
+  scope: 'all' | 'month' = 'all',
+): PlayerStat {
+  if (scope === 'month') {
+    const month = currentMonthKey()
+    return computePlayerStats(
+      playerId,
+      matches.filter((match) => monthKey(match.played_on) === month),
+    )
+  }
+  return computePlayerStats(playerId, matches)
+}
+
+export function statsForPlayerInRange(
+  playerId: string,
+  matches: Match[],
+  start: string,
+  end: string,
+): PlayerStat {
+  return computePlayerStats(playerId, matchesInRange(matches, start, end))
+}
+
+export function statsForPlayerInMonth(playerId: string, matches: Match[], key: string): PlayerStat {
+  return computePlayerStats(
+    playerId,
+    matches.filter((match) => monthKey(match.played_on) === key),
+  )
+}
+
+export function monthKeysForPlayer(playerId: string, matches: Match[]): string[] {
+  const keys = new Set<string>()
+  for (const match of matches) {
+    if (sideOf(match, playerId) !== null) keys.add(monthKey(match.played_on))
+  }
+  return [...keys].sort((a, b) => b.localeCompare(a))
 }
 
 export function buildLeaderboard(

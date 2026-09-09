@@ -2,8 +2,24 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Avatar } from '../components/Avatar'
 import { MatchCard } from '../components/MatchCard'
 import { useData } from '../context/DataContext'
-import { currentMonthKey, formatMonthLabel } from '../lib/dates'
-import { matchesForPlayer, partnerStats, playerById, statsForPlayer } from '../lib/stats'
+import {
+  currentPlayingWeek,
+  formatDay,
+  formatDayRange,
+  formatMonthLabel,
+  previousPlayingWeek,
+  todayISO,
+  yesterdayISO,
+} from '../lib/dates'
+import {
+  matchesForPlayer,
+  monthKeysForPlayer,
+  partnerStats,
+  playerById,
+  statsForPlayer,
+  statsForPlayerInMonth,
+  statsForPlayerInRange,
+} from '../lib/stats'
 import type { PlayerStat } from '../lib/types'
 
 export function PlayerProfileScreen() {
@@ -23,10 +39,48 @@ export function PlayerProfileScreen() {
     )
   }
 
+  const today = todayISO()
+  const yesterday = yesterdayISO()
+  const thisWeek = currentPlayingWeek()
+  const lastWeek = previousPlayingWeek()
+  const months = monthKeysForPlayer(player.id, matches)
+
   const allTime = statsForPlayer(player.id, matches, 'all')
-  const month = statsForPlayer(player.id, matches, 'month')
   const games = matchesForPlayer(player.id, matches)
   const partners = partnerStats(player.id, matches, players).slice(0, 5)
+
+  const periods: { id: string; title: string; subtitle?: string; stats: PlayerStat }[] = [
+    { id: 'all', title: 'All time', stats: allTime },
+    {
+      id: 'today',
+      title: 'Today',
+      subtitle: formatDay(today),
+      stats: statsForPlayerInRange(player.id, matches, today, today),
+    },
+    {
+      id: 'yesterday',
+      title: 'Yesterday',
+      subtitle: formatDay(yesterday),
+      stats: statsForPlayerInRange(player.id, matches, yesterday, yesterday),
+    },
+    {
+      id: 'this-week',
+      title: 'This week',
+      subtitle: formatDayRange(thisWeek.start, thisWeek.end),
+      stats: statsForPlayerInRange(player.id, matches, thisWeek.start, thisWeek.end),
+    },
+    {
+      id: 'last-week',
+      title: 'Last week',
+      subtitle: formatDayRange(lastWeek.start, lastWeek.end),
+      stats: statsForPlayerInRange(player.id, matches, lastWeek.start, lastWeek.end),
+    },
+    ...months.map((key) => ({
+      id: key,
+      title: formatMonthLabel(key),
+      stats: statsForPlayerInMonth(player.id, matches, key),
+    })),
+  ]
 
   return (
     <div className="space-y-5">
@@ -42,15 +96,7 @@ export function PlayerProfileScreen() {
         </div>
       </header>
 
-      <section>
-        <h2 className="mb-2 text-sm font-semibold text-[#9bb5a8]">All time</h2>
-        <StatGrid stats={allTime} />
-      </section>
-
-      <section>
-        <h2 className="mb-2 text-sm font-semibold text-[#9bb5a8]">{formatMonthLabel(currentMonthKey())}</h2>
-        <StatGrid stats={month} />
-      </section>
+      <StatTable rows={periods} />
 
       {partners.length > 0 ? (
         <section>
@@ -90,22 +136,43 @@ export function PlayerProfileScreen() {
   )
 }
 
-function StatGrid({ stats }: { stats: PlayerStat }) {
-  const cells = [
-    { label: 'Wins', value: String(stats.wins) },
-    { label: 'Losses', value: String(stats.losses) },
-    { label: 'Matches', value: String(stats.matches) },
-    { label: 'Win %', value: `${stats.winPct}%` },
-    { label: 'Days in', value: String(stats.attendanceDays) },
-  ]
+function StatTable({
+  rows,
+}: {
+  rows: { id: string; title: string; subtitle?: string; stats: PlayerStat }[]
+}) {
   return (
-    <dl className="grid grid-cols-3 gap-2">
-      {cells.map((cell) => (
-        <div key={cell.label} className="rounded-2xl bg-[#143328] px-3 py-3 text-center">
-          <dt className="text-[10px] font-semibold uppercase tracking-wider text-[#9bb5a8]">{cell.label}</dt>
-          <dd className="mt-1 text-xl font-extrabold tabular-nums">{cell.value}</dd>
-        </div>
-      ))}
-    </dl>
+    <section className="overflow-x-auto rounded-2xl bg-[#143328]">
+      <table className="w-full min-w-[300px] text-sm">
+        <thead>
+          <tr className="border-b border-[#d7ecd0]/10 text-[10px] font-semibold uppercase tracking-wider text-[#9bb5a8]">
+            <th className="px-3 py-2.5 text-left">Period</th>
+            <th className="px-2 py-2.5 text-right">W</th>
+            <th className="px-2 py-2.5 text-right">L</th>
+            <th className="px-2 py-2.5 text-right">M</th>
+            <th className="px-2 py-2.5 text-right">%</th>
+            <th className="px-3 py-2.5 text-right">Days</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, index) => (
+            <tr
+              key={row.id}
+              className={`border-t border-[#d7ecd0]/5 ${index === 0 ? 'font-semibold text-[#f0c14b]' : ''}`}
+            >
+              <td className="px-3 py-2.5">
+                <div>{row.title}</div>
+                {row.subtitle ? <div className="text-[10px] font-normal text-[#9bb5a8]">{row.subtitle}</div> : null}
+              </td>
+              <td className="px-2 py-2.5 text-right tabular-nums">{row.stats.wins}</td>
+              <td className="px-2 py-2.5 text-right tabular-nums">{row.stats.losses}</td>
+              <td className="px-2 py-2.5 text-right tabular-nums">{row.stats.matches}</td>
+              <td className="px-2 py-2.5 text-right tabular-nums">{row.stats.winPct}</td>
+              <td className="px-3 py-2.5 text-right tabular-nums">{row.stats.attendanceDays}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
   )
 }
