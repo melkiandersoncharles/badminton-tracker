@@ -58,7 +58,7 @@ export async function lookupTeamByPin(pin: string): Promise<Team | null> {
   if (supabase) {
     const { data, error } = await supabase.from('teams').select('*').eq('pin', pin).maybeSingle()
     if (error) {
-      // Pre-migration: teams table may not exist yet — caller falls back to VITE_GROUP_PIN.
+      // Pre-migration: teams table may not exist yet — PinGate falls back to VITE_GROUP_PIN dev PIN.
       console.warn('Team PIN lookup failed:', error.message)
       return null
     }

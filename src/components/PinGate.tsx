@@ -11,10 +11,11 @@ import {
 } from '../lib/team'
 
 const STORAGE_KEY = 'bt-pin-ok'
-export const GROUP_PIN = import.meta.env.VITE_GROUP_PIN?.trim() ?? ''
+/** Optional local-dev fallback when Supabase is not configured (public — bundled in browser). */
+const DEV_GROUP_PIN = import.meta.env.VITE_GROUP_PIN?.trim() ?? ''
 
 export function isPinRequired(): boolean {
-  return isSupabaseConfigured || GROUP_PIN.length > 0
+  return isSupabaseConfigured || DEV_GROUP_PIN.length > 0
 }
 
 export function lockClub() {
@@ -33,9 +34,9 @@ export function PinGate({ children }: { children: ReactNode }) {
   const [error, setError] = useState(false)
   const [busy, setBusy] = useState(false)
   const useSupabasePin = isSupabaseConfigured
-  const fallbackPinLength = GROUP_PIN.length > 0 ? GROUP_PIN.length : 4
+  const fallbackPinLength = DEV_GROUP_PIN.length > 0 ? DEV_GROUP_PIN.length : 4
   const numeric = useMemo(
-    () => !useSupabasePin && /^\d+$/.test(GROUP_PIN),
+    () => !useSupabasePin && /^\d+$/.test(DEV_GROUP_PIN),
     [useSupabasePin],
   )
 
@@ -57,7 +58,8 @@ export function PinGate({ children }: { children: ReactNode }) {
           setUnlocked(true)
           return true
         }
-        if (GROUP_PIN && next === GROUP_PIN) {
+        // Legacy dev fallback — production auth is teams table lookup above.
+        if (DEV_GROUP_PIN && next === DEV_GROUP_PIN) {
           setTeamId(getOrCreateLocalDefaultTeamId())
           sessionStorage.setItem(STORAGE_KEY, '1')
           setUnlocked(true)
@@ -65,7 +67,7 @@ export function PinGate({ children }: { children: ReactNode }) {
         }
         return false
       }
-      if (next === GROUP_PIN) {
+      if (next === DEV_GROUP_PIN) {
         setTeamId(getOrCreateLocalDefaultTeamId())
         sessionStorage.setItem(STORAGE_KEY, '1')
         setUnlocked(true)
