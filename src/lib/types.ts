@@ -1,7 +1,15 @@
 export type Court = 1 | 2
 
+export type Team = {
+  id: string
+  name: string
+  pin: string
+  created_at: string
+}
+
 export type Player = {
   id: string
+  team_id: string
   name: string
   photo_url: string | null
   is_guest: boolean
@@ -10,6 +18,7 @@ export type Player = {
 
 export type Match = {
   id: string
+  team_id: string
   played_on: string
   court: Court
   team_a_1: string
@@ -59,6 +68,7 @@ export const SHUTTLES_PER_BOX = 6
 
 export type ShuttleBox = {
   id: string
+  team_id: string
   holder_id: string | null
   used: number
   opened_on: string
@@ -87,6 +97,7 @@ export function winnerOf(match: Match): 'a' | 'b' | 'draw' {
 
 export type ActivityEntry = {
   id: string
+  team_id: string
   actor_id: string | null
   action: string
   details: string

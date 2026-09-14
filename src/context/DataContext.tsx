@@ -15,11 +15,13 @@ import {
   updatePlayer as apiUpdatePlayer,
   updateShuttleBox as apiUpdateShuttleBox,
 } from '../lib/api'
+import { getTeamId } from '../lib/team'
 import { SHUTTLES_PER_BOX } from '../lib/types'
 import type { ActivityEntry, Match, MatchDraft, Player, PlayerDraft, ShuttleBox } from '../lib/types'
 
 type DataContextValue = {
   ready: boolean
+  teamId: string | null
   mode: 'supabase' | 'local'
   error: string | null
   shuttleError: string | null
@@ -64,6 +66,7 @@ function matchSummary(players: Player[], draft: MatchDraft): string {
 }
 
 export function DataProvider({ children }: { children: ReactNode }) {
+  const teamId = getTeamId()
   const [ready, setReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [shuttleError, setShuttleError] = useState<string | null>(null)
@@ -74,6 +77,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [activities, setActivities] = useState<ActivityEntry[]>([])
 
   const refresh = useCallback(async () => {
+    if (!getTeamId()) {
+      setReady(true)
+      return
+    }
     try {
       const [nextPlayers, nextMatches] = await Promise.all([fetchPlayers(), fetchMatches()])
       setPlayers(nextPlayers)
@@ -114,7 +121,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     } finally {
       setReady(true)
     }
-  }, [])
+  }, [teamId])
 
   useEffect(() => {
     void refresh()
@@ -248,6 +255,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       ready,
+      teamId,
       mode: dataMode,
       error,
       shuttleError,
@@ -270,6 +278,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }),
     [
       ready,
+      teamId,
       error,
       shuttleError,
       activityError,

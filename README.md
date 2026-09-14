@@ -2,18 +2,61 @@
 
 Phone-first app for a daily doubles group: matches, scores, attendance, player pages, and a leaderboard.
 
-Everyone uses the **same URL** and logs in with the **group PIN `2580`**.
+One deployment can serve **multiple teams**. Each team has its own PIN; all data is isolated by `team_id`.
 
-Until you connect Supabase, scores stay on that one phone. After you host it (below), all phones share the same data.
+Until you connect Supabase, scores stay on that one phone. After you host it (below), all phones sharing the same team PIN see the same data.
 
 ## Login PIN
 
-The keypad appears whenever `VITE_GROUP_PIN` is set.
-
-- **PIN: `2580`** (change it in `.env` locally and in Vercel if you host)
-- After login, the session lasts until the browser tab is closed, or until someone taps **Lock** on the Players tab
+- **Default team PIN: `2580`** (for the original club after migration)
+- With **Supabase**: the app looks up your PIN in the `teams` table. Different groups can have different PINs on the same URL. No env var needed for production login.
+- Without Supabase: optional `VITE_GROUP_PIN` in `.env` for local-only dev on one phone (public — bundled in the browser).
+- After login, the session lasts until the tab is closed, or until someone taps **Lock** on the Players tab (clears team + operator).
 
 Restart `npm run dev` after changing `.env`.
+
+## Admin (manage teams)
+
+Set **`ADMIN_PIN`** as a **secret** environment variable (no `VITE_` prefix). On Vercel, add it under **Environment Variables** as a plain secret — not under “Framework / Public”. The app verifies admin login server-side via `/api/admin-verify` so the PIN never ships in the browser bundle.
+
+Example: `admin2580` — pick your own secret; do not commit it. Restart dev server or redeploy after changing it.
+
+- Open **`/admin`** on the app URL, or tap **Admin** at the bottom of the club PIN screen.
+- Enter the admin PIN to list teams, add new ones (name + unique PIN), or delete empty teams.
+- Admin session is separate from club login (`bt-admin-ok` in sessionStorage). Logging out admin does not lock the club.
+
+**Supabase:** new installs get team write/delete policies from `schema.sql`. Existing projects: run `supabase/admin-teams-policy.sql` in the SQL Editor.
+
+**Local mode (no Supabase):** teams are stored in `localStorage` under `bt-teams`; admin UI works the same with `ADMIN_PIN` in `.env`.
+
+## Multi-team setup
+
+### New Supabase project
+
+Run `supabase/schema.sql` in the SQL Editor. It creates a `teams` table and seeds **Default Club** with PIN `2580`.
+
+### Existing live Supabase (upgrade)
+
+1. **Back up first** — see `supabase/backup/README.md`.
+2. Run `supabase/backup/pre-multiteam-backup.sql` in the SQL Editor.
+3. Run `supabase/multiteam.sql` in a new query.
+4. Redeploy the app (or pull latest `feature/multiteam` / main after merge).
+
+Existing players, matches, shuttle boxes, and activity are assigned to **Default Club** (PIN `2580`). Nothing is deleted.
+
+### Add another team
+
+Use **Admin** (`/admin`) after setting `ADMIN_PIN`, or insert manually in Supabase SQL Editor:
+
+```sql
+insert into public.teams (name, pin)
+values ('Tuesday Night Group', '4321')
+on conflict (pin) do nothing;
+```
+
+Share the new PIN with that group. They use the **same app URL**; only the PIN differs.
+
+See also `supabase/seed-second-team.sql` for a copy-paste example.
 
 ## Run on this computer
 
@@ -22,11 +65,11 @@ npm install
 npm run dev
 ```
 
-Open the URL, type **2580**, then add people on **Players** and log matches on **Today**.
+Open the URL, type your team PIN, then add people on **Players** and log matches on **Today**.
 
 ## Host it on the internet (step by step)
 
-You need three free accounts: **GitHub** (code), **Supabase** (shared scores + photos), **Vercel** (the public website). Group PIN stays **2580**.
+You need three free accounts: **GitHub** (code), **Supabase** (shared scores + photos), **Vercel** (the public website).
 
 ### A. Save the code on GitHub
 
@@ -50,7 +93,7 @@ Replace `YOUR_GITHUB_USERNAME` with your GitHub name. Sign in if GitHub asks.
 2. **New project**. Pick an org, name it e.g. `badminton`, set a database password (save it), region close to you → **Create**.
 3. Wait until the project is ready.
 4. Left sidebar → **SQL Editor** → **New query**.
-5. Open the file `supabase/schema.sql` in this project, copy **all** of it, paste into the editor → **Run**. You should see success.
+5. Open `supabase/schema.sql`, copy **all** of it, paste into the editor → **Run**. You should see success.
 6. Left sidebar → **Project Settings** (gear) → **API**.
 7. Copy:
    - **Project URL** (looks like `https://abcdxyz.supabase.co`)
@@ -60,13 +103,19 @@ Replace `YOUR_GITHUB_USERNAME` with your GitHub name. Sign in if GitHub asks.
 
 1. Go to [vercel.com](https://vercel.com) → sign up with the **same GitHub** account.
 2. **Add New… → Project** → import `badminton-tracker`.
-3. Before you click Deploy, open **Environment Variables** and add all three:
+3. Before you click Deploy, open **Environment Variables** and add:
 
-| Name | Value |
-| --- | --- |
-| `VITE_SUPABASE_URL` | the Project URL from step B |
-| `VITE_SUPABASE_ANON_KEY` | the anon public key from step B |
-| `VITE_GROUP_PIN` | `2580` |
+| Name | Vercel type | Value |
+| --- | --- | --- |
+| `VITE_SUPABASE_URL` | Framework / Public (`VITE_`) | Project URL from step B |
+| `VITE_SUPABASE_ANON_KEY` | Framework / Public (`VITE_`) | anon public key from step B (safe for browser) |
+| `ADMIN_PIN` | Plain / Secret (no prefix) | your admin secret (enables `/admin` team management) |
+
+Optional for local-only dev without Supabase:
+
+| Name | Vercel type | Value |
+| --- | --- | --- |
+| `VITE_GROUP_PIN` | Framework / Public (`VITE_`) | e.g. `2580` — legacy dev fallback only; production uses `teams` table |
 
 4. Click **Deploy**. Wait until it finishes.
 5. Click **Visit** (or **Domains**). Your public address looks like `https://badminton-tracker-xxxxx.vercel.app`.
@@ -78,9 +127,9 @@ If you forgot the env vars, add them under **Settings → Environment Variables*
 Send them:
 
 - The Vercel link
-- PIN **2580**
+- Their team PIN (e.g. **2580** for Default Club)
 
-They open the link → type **2580** → use **Today / Shuttle / Players / Board**.
+They open the link → enter PIN → use **Today / Shuttle / Players / Board**.
 
 On a phone, add a home-screen icon:
 
@@ -95,15 +144,17 @@ So local testing also talks to the shared database, edit `.env` in the project f
 VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 VITE_GROUP_PIN=2580
+ADMIN_PIN=your-admin-secret
 ```
 
 Then restart `npm run dev`. The yellow “this phone only” banner should disappear.
 
 ### If something fails
 
-- PIN keypad never appears → `VITE_GROUP_PIN` is missing on Vercel; add it and **Redeploy**.
-- Yellow banner / data not shared → Supabase URL or anon key is wrong, or schema.sql was not run.
-- Shuttle tab says the table is missing → paste and run `supabase/shuttle.sql` in the SQL Editor, then refresh.
+- PIN keypad never appears → Supabase is not configured and `VITE_GROUP_PIN` is missing; add Supabase keys (production) or `VITE_GROUP_PIN` (local dev), then **Redeploy**.
+- Wrong PIN with Supabase → run `multiteam.sql` if upgrading; confirm the team row exists: `select * from teams;`
+- Yellow banner / data not shared → Supabase URL or anon key is wrong, or schema was not run.
+- Shuttle tab says the table is missing → paste and run `supabase/shuttle.sql`, then `multiteam.sql` if needed.
 - Photo upload fails → confirm the `player-photos` bucket exists (schema.sql creates it).
 - Page not found on a player URL → `vercel.json` is in the repo; redeploy after the first GitHub push.
 

@@ -1,48 +1,97 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { Link } from 'react-router-dom'
+import { lookupTeamByPin } from '../lib/api'
 import { clearOperatorId } from '../lib/operator'
+import { isSupabaseConfigured } from '../lib/supabase'
+import {
+  clearTeamId,
+  getOrCreateLocalDefaultTeamId,
+  getTeamId,
+  setTeamId,
+} from '../lib/team'
 
 const STORAGE_KEY = 'bt-pin-ok'
-export const GROUP_PIN = import.meta.env.VITE_GROUP_PIN?.trim() ?? ''
+/** Optional local-dev fallback when Supabase is not configured (public — bundled in browser). */
+const DEV_GROUP_PIN = import.meta.env.VITE_GROUP_PIN?.trim() ?? ''
+
+export function isPinRequired(): boolean {
+  return isSupabaseConfigured || DEV_GROUP_PIN.length > 0
+}
 
 export function lockClub() {
   sessionStorage.removeItem(STORAGE_KEY)
+  clearTeamId()
   clearOperatorId()
   window.location.reload()
 }
 
 export function PinGate({ children }: { children: ReactNode }) {
-  const required = GROUP_PIN.length > 0
+  const required = isPinRequired()
   const [unlocked, setUnlocked] = useState(
-    () => !required || sessionStorage.getItem(STORAGE_KEY) === '1',
+    () => !required || (sessionStorage.getItem(STORAGE_KEY) === '1' && Boolean(getTeamId())),
   )
   const [value, setValue] = useState('')
   const [error, setError] = useState(false)
-  const numeric = useMemo(() => /^\d+$/.test(GROUP_PIN), [])
+  const [busy, setBusy] = useState(false)
+  const useSupabasePin = isSupabaseConfigured
+  const fallbackPinLength = DEV_GROUP_PIN.length > 0 ? DEV_GROUP_PIN.length : 4
+  const numeric = useMemo(
+    () => !useSupabasePin && /^\d+$/.test(DEV_GROUP_PIN),
+    [useSupabasePin],
+  )
 
-  if (!required || unlocked) return children
-
-  function unlockIfMatch(next: string) {
-    if (next === GROUP_PIN) {
-      sessionStorage.setItem(STORAGE_KEY, '1')
-      setUnlocked(true)
-      return true
-    }
-    return false
+  if (!required) {
+    if (!getTeamId()) setTeamId(getOrCreateLocalDefaultTeamId())
+    return children
   }
 
-  function submit(event?: FormEvent) {
+  if (unlocked) return children
+
+  async function unlockIfMatch(next: string): Promise<boolean> {
+    setBusy(true)
+    try {
+      if (useSupabasePin) {
+        const team = await lookupTeamByPin(next)
+        if (team) {
+          setTeamId(team.id)
+          sessionStorage.setItem(STORAGE_KEY, '1')
+          setUnlocked(true)
+          return true
+        }
+        // Legacy dev fallback — production auth is teams table lookup above.
+        if (DEV_GROUP_PIN && next === DEV_GROUP_PIN) {
+          setTeamId(getOrCreateLocalDefaultTeamId())
+          sessionStorage.setItem(STORAGE_KEY, '1')
+          setUnlocked(true)
+          return true
+        }
+        return false
+      }
+      if (next === DEV_GROUP_PIN) {
+        setTeamId(getOrCreateLocalDefaultTeamId())
+        sessionStorage.setItem(STORAGE_KEY, '1')
+        setUnlocked(true)
+        return true
+      }
+      return false
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function submit(event?: FormEvent) {
     event?.preventDefault()
-    if (!unlockIfMatch(value)) {
+    if (!(await unlockIfMatch(value))) {
       setError(true)
       setValue('')
     }
   }
 
-  function tapDigit(digit: string) {
-    const next = (value + digit).slice(0, GROUP_PIN.length)
+  async function tapDigit(digit: string) {
+    const next = (value + digit).slice(0, fallbackPinLength)
     setValue(next)
     setError(false)
-    if (next.length === GROUP_PIN.length && !unlockIfMatch(next)) {
+    if (next.length === fallbackPinLength && !(await unlockIfMatch(next))) {
       setError(true)
       setValue('')
     }
@@ -52,11 +101,15 @@ export function PinGate({ children }: { children: ReactNode }) {
     <div className="mx-auto flex min-h-svh max-w-md flex-col items-center justify-center bg-[#0c1f18] px-6 text-center">
       <p className="text-xs font-bold uppercase tracking-[0.25em] text-[#f0c14b]">Club login</p>
       <h1 className="mt-2 text-2xl font-bold">Enter group PIN</h1>
-      <p className="mt-2 text-sm text-[#9bb5a8]">Same PIN for everyone. Ask a regular if you don’t have it.</p>
+      <p className="mt-2 text-sm text-[#9bb5a8]">
+        {useSupabasePin
+          ? 'Enter your team PIN. Each group has its own code.'
+          : 'Same PIN for everyone. Ask a regular if you don’t have it.'}
+      </p>
       {numeric ? (
         <>
           <div className="mt-8 flex gap-2">
-            {Array.from({ length: GROUP_PIN.length }).map((_, i) => (
+            {Array.from({ length: fallbackPinLength }).map((_, i) => (
               <span
                 key={i}
                 className={`h-3 w-3 rounded-full ${i < value.length ? 'bg-[#f0c14b]' : 'bg-[#1c4a3a]'}`}
@@ -72,14 +125,15 @@ export function PinGate({ children }: { children: ReactNode }) {
                 <button
                   key={key}
                   type="button"
-                  className="h-14 rounded-2xl bg-[#143328] text-xl font-semibold"
+                  disabled={busy}
+                  className="h-14 rounded-2xl bg-[#143328] text-xl font-semibold disabled:opacity-60"
                   onClick={() => {
                     if (key === '⌫') {
                       setValue((v) => v.slice(0, -1))
                       setError(false)
                       return
                     }
-                    tapDigit(key)
+                    void tapDigit(key)
                   }}
                 >
                   {key}
@@ -89,27 +143,32 @@ export function PinGate({ children }: { children: ReactNode }) {
           </div>
         </>
       ) : (
-        <form className="mt-8 w-full max-w-xs" onSubmit={submit}>
+        <form className="mt-8 w-full max-w-xs" onSubmit={(e) => void submit(e)}>
           <input
             autoFocus
             type="password"
             value={value}
+            disabled={busy}
             onChange={(e) => {
               setValue(e.target.value)
               setError(false)
             }}
-            className="w-full rounded-2xl border border-[#d7ecd0]/20 bg-[#143328] px-4 py-3 text-center text-lg outline-none"
+            className="w-full rounded-2xl border border-[#d7ecd0]/20 bg-[#143328] px-4 py-3 text-center text-lg outline-none disabled:opacity-60"
             placeholder="PIN"
           />
           {error ? <p className="mt-3 text-sm text-red-300">Wrong PIN</p> : null}
           <button
             type="submit"
-            className="mt-4 w-full rounded-2xl bg-[#f0c14b] py-3 font-bold text-[#0c1f18]"
+            disabled={busy}
+            className="mt-4 w-full rounded-2xl bg-[#f0c14b] py-3 font-bold text-[#0c1f18] disabled:opacity-60"
           >
-            Log in
+            {busy ? 'Checking…' : 'Log in'}
           </button>
         </form>
       )}
+      <Link to="/admin" className="mt-8 text-xs text-[#9bb5a8] underline">
+        Admin
+      </Link>
     </div>
   )
 }
