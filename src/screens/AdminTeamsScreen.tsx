@@ -64,7 +64,7 @@ export function AdminTeamsScreen({ onLogout }: { onLogout: () => void }) {
 
   async function handleDelete(team: Team) {
     const ok = window.confirm(
-      `Delete "${team.name}" (PIN ${team.pin})? This fails if the team has players or matches.`,
+      `Delete "${team.name}" (PIN ${team.pin}) and ALL its data?\n\nThis permanently removes players, matches, shuttle boxes, activity, and photos. This cannot be undone.`,
     )
     if (!ok) return
     setBusy(true)
@@ -131,7 +131,7 @@ export function AdminTeamsScreen({ onLogout }: { onLogout: () => void }) {
                   onClick={() => void handleDelete(team)}
                   className="shrink-0 rounded-full bg-[#1c4a3a] px-3 py-1 text-xs font-bold text-red-200 disabled:opacity-60"
                 >
-                  Delete
+                  Delete club
                 </button>
               </li>
             ))}

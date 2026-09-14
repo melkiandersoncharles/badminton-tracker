@@ -144,6 +144,8 @@ alter table public.activity_log enable row level security;
 
 drop policy if exists "anon read activity_log" on public.activity_log;
 drop policy if exists "anon write activity_log" on public.activity_log;
+drop policy if exists "anon delete activity_log" on public.activity_log;
 
 create policy "anon read activity_log" on public.activity_log for select to anon using (true);
 create policy "anon write activity_log" on public.activity_log for insert to anon with check (true);
+create policy "anon delete activity_log" on public.activity_log for delete to anon using (true);

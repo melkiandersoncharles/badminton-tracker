@@ -112,23 +112,50 @@ export async function createTeam(name: string, pin: string): Promise<Team> {
 
 export async function deleteTeam(id: string): Promise<void> {
   if (supabase) {
-    const { error } = await supabase.from('teams').delete().eq('id', id)
-    if (error) {
-      if (error.code === '23503') {
-        throw new Error('Cannot delete: team has players or other data')
-      }
-      throw error
+    const { data: players, error: playersError } = await supabase
+      .from('players')
+      .select('id')
+      .eq('team_id', id)
+    if (playersError) throw playersError
+
+    const { error: matchesError } = await supabase.from('matches').delete().eq('team_id', id)
+    if (matchesError) throw matchesError
+
+    const { error: shuttleError } = await supabase.from('shuttle_boxes').delete().eq('team_id', id)
+    if (shuttleError) throw shuttleError
+
+    const { error: activityError } = await supabase.from('activity_log').delete().eq('team_id', id)
+    if (activityError) throw activityError
+
+    const { error: deletePlayersError } = await supabase.from('players').delete().eq('team_id', id)
+    if (deletePlayersError) throw deletePlayersError
+
+    for (const player of players ?? []) {
+      await supabase.storage.from('player-photos').remove([`${player.id}.jpg`])
     }
+
+    const { error } = await supabase.from('teams').delete().eq('id', id)
+    if (error) throw error
     return
   }
 
-  const players = readLocal<Player[]>(PLAYERS_KEY, [])
-  if (players.some((player) => player.team_id === id)) {
-    throw new Error('Cannot delete: team has players')
-  }
-
-  const teams = readLocal<Team[]>(TEAMS_KEY, [])
-  writeLocal(TEAMS_KEY, teams.filter((team) => team.id !== id))
+  writeLocal(
+    PLAYERS_KEY,
+    readLocal<Player[]>(PLAYERS_KEY, []).filter((player) => player.team_id !== id),
+  )
+  writeLocal(
+    MATCHES_KEY,
+    readLocal<Match[]>(MATCHES_KEY, []).filter((match) => match.team_id !== id),
+  )
+  writeLocal(
+    SHUTTLES_KEY,
+    readLocal<ShuttleBox[]>(SHUTTLES_KEY, []).filter((box) => box.team_id !== id),
+  )
+  writeLocal(
+    ACTIVITY_KEY,
+    readLocal<ActivityEntry[]>(ACTIVITY_KEY, []).filter((entry) => entry.team_id !== id),
+  )
+  writeLocal(TEAMS_KEY, readLocal<Team[]>(TEAMS_KEY, []).filter((team) => team.id !== id))
 }
 
 export async function fetchPlayers(): Promise<Player[]> {
