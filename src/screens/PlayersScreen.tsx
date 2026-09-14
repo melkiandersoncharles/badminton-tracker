@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { Avatar } from '../components/Avatar'
-import { GROUP_PIN, lockClub } from '../components/PinGate'
+import { isPinRequired, lockClub } from '../components/PinGate'
 import { useData } from '../context/DataContext'
 import { switchOperator } from '../lib/operator'
 import { matchPlayerIds } from '../lib/types'
@@ -34,7 +34,7 @@ export function PlayersScreen() {
           >
             Switch user
           </button>
-          {GROUP_PIN ? (
+          {isPinRequired() ? (
             <button
               type="button"
               onClick={() => lockClub()}

@@ -1,16 +1,37 @@
--- Badminton Tracker schema
+-- Badminton Tracker schema (multi-team)
 -- Paste this into the Supabase SQL editor (SQL → New query).
+
+create table if not exists public.teams (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  pin text not null unique,
+  created_at timestamptz not null default now()
+);
+
+alter table public.teams enable row level security;
+
+drop policy if exists "anon read teams" on public.teams;
+create policy "anon read teams" on public.teams for select to anon using (true);
+
+-- Default team (PIN matches VITE_GROUP_PIN default)
+insert into public.teams (name, pin)
+values ('Default Club', '2580')
+on conflict (pin) do nothing;
 
 create table if not exists public.players (
   id uuid primary key default gen_random_uuid(),
+  team_id uuid not null references public.teams(id),
   name text not null,
   photo_url text,
   is_guest boolean not null default false,
   created_at timestamptz not null default now()
 );
 
+create index if not exists players_team_id_idx on public.players (team_id);
+
 create table if not exists public.matches (
   id uuid primary key default gen_random_uuid(),
+  team_id uuid not null references public.teams(id),
   played_on date not null default (current_date),
   court smallint not null check (court in (1, 2)),
   team_a_1 uuid not null references public.players(id),
@@ -24,6 +45,7 @@ create table if not exists public.matches (
 
 create index if not exists matches_played_on_idx on public.matches (played_on desc);
 create index if not exists matches_court_idx on public.matches (court);
+create index if not exists matches_team_id_idx on public.matches (team_id);
 
 alter table public.players enable row level security;
 alter table public.matches enable row level security;
@@ -76,6 +98,7 @@ create policy "anon delete player photos"
 -- Shuttle boxes (6 shuttles each)
 create table if not exists public.shuttle_boxes (
   id uuid primary key default gen_random_uuid(),
+  team_id uuid not null references public.teams(id),
   holder_id uuid references public.players(id) on delete set null,
   used integer not null default 0 check (used >= 0 and used <= 6),
   opened_on date not null default (current_date),
@@ -84,6 +107,7 @@ create table if not exists public.shuttle_boxes (
 );
 
 create index if not exists shuttle_boxes_open_idx on public.shuttle_boxes (closed_at);
+create index if not exists shuttle_boxes_team_id_idx on public.shuttle_boxes (team_id);
 
 alter table public.shuttle_boxes enable row level security;
 
@@ -100,6 +124,7 @@ create policy "anon delete shuttle_boxes" on public.shuttle_boxes for delete to 
 -- Activity log (who did what)
 create table if not exists public.activity_log (
   id uuid primary key default gen_random_uuid(),
+  team_id uuid not null references public.teams(id),
   actor_id uuid references public.players(id) on delete set null,
   action text not null,
   details text not null,
@@ -107,6 +132,7 @@ create table if not exists public.activity_log (
 );
 
 create index if not exists activity_log_created_idx on public.activity_log (created_at desc);
+create index if not exists activity_log_team_id_idx on public.activity_log (team_id);
 
 alter table public.activity_log enable row level security;
 
