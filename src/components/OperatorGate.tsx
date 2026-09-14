@@ -49,10 +49,10 @@ export function OperatorGate({ children }: { children: ReactNode }) {
         <NewMemberForm
           busy={busy}
           onCancel={() => setAdding(false)}
-          onSave={async (name) => {
+          onSave={async ({ name, photoFile }) => {
             setBusy(true)
             try {
-              const player = await addPlayer({ name, is_guest: false })
+              const player = await addPlayer({ name, is_guest: false, photoFile })
               setOperatorId(player.id)
               setLocalOperatorId(player.id)
               try {
@@ -116,9 +116,11 @@ function NewMemberForm({
 }: {
   busy: boolean
   onCancel: () => void
-  onSave: (name: string) => Promise<void>
+  onSave: (input: { name: string; photoFile?: File | null }) => Promise<void>
 }) {
   const [name, setName] = useState('')
+  const [file, setFile] = useState<File | null>(null)
+  const [preview, setPreview] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   async function submit(event: FormEvent) {
@@ -129,7 +131,7 @@ function NewMemberForm({
     }
     setError(null)
     try {
-      await onSave(name.trim())
+      await onSave({ name: name.trim(), photoFile: file })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not add member')
     }
@@ -144,6 +146,28 @@ function NewMemberForm({
         </button>
       </div>
       <p className="text-xs text-[#9bb5a8]">They&apos;ll be added to the roster and signed in on this phone.</p>
+      <div className="flex items-center gap-3">
+        {preview ? (
+          <img src={preview} alt="" className="h-16 w-16 rounded-full object-cover" />
+        ) : (
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#0c1f18] text-xs text-[#9bb5a8]">
+            Photo
+          </div>
+        )}
+        <label className="text-sm font-semibold text-[#f0c14b]">
+          {preview ? 'Change photo' : 'Add photo'}
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const next = e.target.files?.[0] ?? null
+              setFile(next)
+              if (next) setPreview(URL.createObjectURL(next))
+            }}
+          />
+        </label>
+      </div>
       <input
         autoFocus
         value={name}
