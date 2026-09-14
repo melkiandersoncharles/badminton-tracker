@@ -9,6 +9,7 @@ const PLAYERS_KEY = 'bt-players'
 const MATCHES_KEY = 'bt-matches'
 const SHUTTLES_KEY = 'bt-shuttle-boxes'
 const ACTIVITY_KEY = 'bt-activity'
+const TEAMS_KEY = 'bt-teams'
 
 export const dataMode: 'supabase' | 'local' = isSupabaseConfigured ? 'supabase' : 'local'
 
@@ -54,14 +55,80 @@ async function uploadPhoto(playerId: string, file: File): Promise<string> {
 }
 
 export async function lookupTeamByPin(pin: string): Promise<Team | null> {
-  if (!supabase) return null
-  const { data, error } = await supabase.from('teams').select('*').eq('pin', pin).maybeSingle()
-  if (error) {
-    // Pre-migration: teams table may not exist yet — caller falls back to VITE_GROUP_PIN.
-    console.warn('Team PIN lookup failed:', error.message)
-    return null
+  if (supabase) {
+    const { data, error } = await supabase.from('teams').select('*').eq('pin', pin).maybeSingle()
+    if (error) {
+      // Pre-migration: teams table may not exist yet — caller falls back to VITE_GROUP_PIN.
+      console.warn('Team PIN lookup failed:', error.message)
+      return null
+    }
+    return data as Team | null
   }
-  return data as Team | null
+  return readLocal<Team[]>(TEAMS_KEY, []).find((team) => team.pin === pin) ?? null
+}
+
+export async function fetchTeams(): Promise<Team[]> {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from('teams')
+      .select('*')
+      .order('created_at', { ascending: true })
+    if (error) throw error
+    return (data ?? []) as Team[]
+  }
+  return readLocal<Team[]>(TEAMS_KEY, []).sort((a, b) => a.created_at.localeCompare(b.created_at))
+}
+
+export async function createTeam(name: string, pin: string): Promise<Team> {
+  const trimmedName = name.trim()
+  const trimmedPin = pin.trim()
+  if (!trimmedName) throw new Error('Team name is required')
+  if (!trimmedPin) throw new Error('PIN is required')
+
+  const teams = await fetchTeams()
+  if (teams.some((team) => team.pin === trimmedPin)) {
+    throw new Error('PIN already in use')
+  }
+
+  const team: Team = {
+    id: crypto.randomUUID(),
+    name: trimmedName,
+    pin: trimmedPin,
+    created_at: new Date().toISOString(),
+  }
+
+  if (supabase) {
+    const { error } = await supabase.from('teams').insert(team)
+    if (error) {
+      if (error.code === '23505') throw new Error('PIN already in use')
+      throw error
+    }
+    return team
+  }
+
+  writeLocal(TEAMS_KEY, [...teams, team])
+  return team
+}
+
+export async function deleteTeam(id: string): Promise<void> {
+  if (supabase) {
+    const { error } = await supabase.from('teams').delete().eq('id', id)
+    if (error) {
+      if (error.code === '23503') {
+        throw new Error('Cannot delete: team has players or other data')
+      }
+      throw error
+    }
+    return
+  }
+
+  const players = readLocal<Player[]>(PLAYERS_KEY, [])
+  if (players.some((player) => player.team_id === id)) {
+    throw new Error('Cannot delete: team has players')
+  }
+
+  const teams = readLocal<Team[]>(TEAMS_KEY, [])
+  writeLocal(TEAMS_KEY, teams.filter((team) => team.id !== id))
 }
 
 export async function fetchPlayers(): Promise<Player[]> {

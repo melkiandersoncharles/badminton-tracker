@@ -1,4 +1,5 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import { lookupTeamByPin } from '../lib/api'
 import { clearOperatorId } from '../lib/operator'
 import { isSupabaseConfigured } from '../lib/supabase'
@@ -163,6 +164,9 @@ export function PinGate({ children }: { children: ReactNode }) {
           </button>
         </form>
       )}
+      <Link to="/admin" className="mt-8 text-xs text-[#9bb5a8] underline">
+        Admin
+      </Link>
     </div>
   )
 }

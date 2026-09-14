@@ -13,6 +13,12 @@ alter table public.teams enable row level security;
 drop policy if exists "anon read teams" on public.teams;
 create policy "anon read teams" on public.teams for select to anon using (true);
 
+drop policy if exists "anon write teams" on public.teams;
+create policy "anon write teams" on public.teams for insert to anon with check (true);
+
+drop policy if exists "anon delete teams" on public.teams;
+create policy "anon delete teams" on public.teams for delete to anon using (true);
+
 -- Default team (PIN matches VITE_GROUP_PIN default)
 insert into public.teams (name, pin)
 values ('Default Club', '2580')

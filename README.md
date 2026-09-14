@@ -15,6 +15,18 @@ Until you connect Supabase, scores stay on that one phone. After you host it (be
 
 Restart `npm run dev` after changing `.env`.
 
+## Admin (manage teams)
+
+Set **`VITE_ADMIN_PIN`** in `.env` or Vercel (e.g. `admin2580` — pick your own secret; do not commit it). Restart dev server or redeploy after changing it.
+
+- Open **`/admin`** on the app URL, or tap **Admin** at the bottom of the club PIN screen.
+- Enter the admin PIN to list teams, add new ones (name + unique PIN), or delete empty teams.
+- Admin session is separate from club login (`bt-admin-ok` in sessionStorage). Logging out admin does not lock the club.
+
+**Supabase:** new installs get team write/delete policies from `schema.sql`. Existing projects: run `supabase/admin-teams-policy.sql` in the SQL Editor.
+
+**Local mode (no Supabase):** teams are stored in `localStorage` under `bt-teams`; admin UI works the same with `VITE_ADMIN_PIN`.
+
 ## Multi-team setup
 
 ### New Supabase project
@@ -32,7 +44,7 @@ Existing players, matches, shuttle boxes, and activity are assigned to **Default
 
 ### Add another team
 
-In Supabase SQL Editor:
+Use **Admin** (`/admin`) after setting `VITE_ADMIN_PIN`, or insert manually in Supabase SQL Editor:
 
 ```sql
 insert into public.teams (name, pin)
@@ -96,6 +108,7 @@ Replace `YOUR_GITHUB_USERNAME` with your GitHub name. Sign in if GitHub asks.
 | `VITE_SUPABASE_URL` | the Project URL from step B |
 | `VITE_SUPABASE_ANON_KEY` | the anon public key from step B |
 | `VITE_GROUP_PIN` | `2580` (optional fallback for local-only dev without Supabase) |
+| `VITE_ADMIN_PIN` | your admin secret (enables `/admin` team management) |
 
 4. Click **Deploy**. Wait until it finishes.
 5. Click **Visit** (or **Domains**). Your public address looks like `https://badminton-tracker-xxxxx.vercel.app`.
@@ -124,6 +137,7 @@ So local testing also talks to the shared database, edit `.env` in the project f
 VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 VITE_GROUP_PIN=2580
+VITE_ADMIN_PIN=your-admin-secret
 ```
 
 Then restart `npm run dev`. The yellow “this phone only” banner should disappear.
