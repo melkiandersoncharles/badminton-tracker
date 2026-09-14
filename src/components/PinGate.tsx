@@ -56,6 +56,12 @@ export function PinGate({ children }: { children: ReactNode }) {
           setUnlocked(true)
           return true
         }
+        if (GROUP_PIN && next === GROUP_PIN) {
+          setTeamId(getOrCreateLocalDefaultTeamId())
+          sessionStorage.setItem(STORAGE_KEY, '1')
+          setUnlocked(true)
+          return true
+        }
         return false
       }
       if (next === GROUP_PIN) {

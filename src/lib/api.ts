@@ -56,7 +56,11 @@ async function uploadPhoto(playerId: string, file: File): Promise<string> {
 export async function lookupTeamByPin(pin: string): Promise<Team | null> {
   if (!supabase) return null
   const { data, error } = await supabase.from('teams').select('*').eq('pin', pin).maybeSingle()
-  if (error) throw error
+  if (error) {
+    // Pre-migration: teams table may not exist yet — caller falls back to VITE_GROUP_PIN.
+    console.warn('Team PIN lookup failed:', error.message)
+    return null
+  }
   return data as Team | null
 }
 
