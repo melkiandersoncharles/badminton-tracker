@@ -29,7 +29,7 @@ type DataContextValue = {
   shuttleBoxes: ShuttleBox[]
   activities: ActivityEntry[]
   refresh: () => Promise<void>
-  addPlayer: (draft: PlayerDraft) => Promise<void>
+  addPlayer: (draft: PlayerDraft) => Promise<Player>
   editPlayer: (
     id: string,
     patch: { name?: string; is_guest?: boolean; photoFile?: File | null },
@@ -127,9 +127,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const addPlayer = useCallback(
     async (draft: PlayerDraft) => {
-      await apiCreatePlayer(draft)
+      const player = await apiCreatePlayer(draft)
       await logActivity('player_add', `Added ${draft.is_guest ? 'guest' : 'member'} ${draft.name}`)
       await refresh()
+      return player
     },
     [refresh],
   )
