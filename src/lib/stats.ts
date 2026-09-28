@@ -162,6 +162,38 @@ export function monthKeysForPlayer(playerId: string, matches: Match[]): string[]
   return [...keys].sort((a, b) => b.localeCompare(a))
 }
 
+export function attendanceDaysForPlayerInMonth(
+  playerId: string,
+  matches: Match[],
+  month: string,
+): Set<string> {
+  const days = new Set<string>()
+  for (const match of matches) {
+    if (monthKey(match.played_on) !== month) continue
+    if (sideOf(match, playerId) !== null) days.add(match.played_on)
+  }
+  return days
+}
+
+export type MonthlyAttendanceRow = {
+  month: string
+  days: number
+}
+
+export function monthlyAttendanceForPlayer(playerId: string, matches: Match[]): MonthlyAttendanceRow[] {
+  const map = new Map<string, Set<string>>()
+  for (const match of matches) {
+    if (sideOf(match, playerId) === null) continue
+    const key = monthKey(match.played_on)
+    const days = map.get(key) ?? new Set<string>()
+    days.add(match.played_on)
+    map.set(key, days)
+  }
+  return [...map.entries()]
+    .map(([month, days]) => ({ month, days: days.size }))
+    .sort((a, b) => b.month.localeCompare(a.month))
+}
+
 export function buildLeaderboard(
   players: Player[],
   matches: Match[],

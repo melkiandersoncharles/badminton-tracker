@@ -1,6 +1,7 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Avatar } from '../components/Avatar'
 import { MatchCard } from '../components/MatchCard'
+import { PlayerAttendance } from '../components/PlayerAttendance'
 import { useData } from '../context/DataContext'
 import {
   currentPlayingWeek,
@@ -97,6 +98,8 @@ export function PlayerProfileScreen() {
       </header>
 
       <StatTable rows={periods} />
+
+      <PlayerAttendance playerId={player.id} matches={matches} />
 
       {partners.length > 0 ? (
         <section>

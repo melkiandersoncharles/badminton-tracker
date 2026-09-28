@@ -52,6 +52,33 @@ export function formatMonthLabel(key: string): string {
   })
 }
 
+export type CalendarCell = {
+  date: string | null
+  day: number | null
+}
+
+const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
+
+export function weekdayLabels(): readonly string[] {
+  return WEEKDAY_LABELS
+}
+
+export function calendarCellsForMonth(key: string): CalendarCell[] {
+  const [y, m] = key.split('-').map(Number)
+  const first = new Date(y, m - 1, 1)
+  const lastDay = new Date(y, m, 0).getDate()
+  const startOffset = first.getDay() === 0 ? 6 : first.getDay() - 1
+
+  const cells: CalendarCell[] = []
+  for (let i = 0; i < startOffset; i++) cells.push({ date: null, day: null })
+  for (let day = 1; day <= lastDay; day++) {
+    const date = `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    cells.push({ date, day })
+  }
+  while (cells.length % 7 !== 0) cells.push({ date: null, day: null })
+  return cells
+}
+
 export function yesterdayISO(date = new Date()): string {
   const previous = new Date(date.getFullYear(), date.getMonth(), date.getDate() - 1)
   return todayISO(previous)
