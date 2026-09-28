@@ -44,6 +44,34 @@ export function daysWithMatches(matches: Match[]): string[] {
   return [...days].sort((a, b) => (a < b ? 1 : -1))
 }
 
+export function monthKeysFromMatches(matches: Match[]): string[] {
+  const keys = new Set<string>()
+  for (const match of matches) keys.add(monthKey(match.played_on))
+  return [...keys].sort((a, b) => b.localeCompare(a))
+}
+
+export type AttendanceRow = {
+  player: Player
+  days: number
+}
+
+export function buildAttendance(
+  players: Player[],
+  matches: Match[],
+  filter: 'all' | string,
+): AttendanceRow[] {
+  const members = players.filter((player) => !player.is_guest)
+  return members
+    .map((player) => ({
+      player,
+      days:
+        filter === 'all'
+          ? statsForPlayer(player.id, matches, 'all').attendanceDays
+          : statsForPlayerInMonth(player.id, matches, filter).attendanceDays,
+    }))
+    .sort((a, b) => b.days - a.days || a.player.name.localeCompare(b.player.name))
+}
+
 export function sideOf(match: Match, playerId: string): 'a' | 'b' | null {
   if (match.team_a_1 === playerId || match.team_a_2 === playerId) return 'a'
   if (match.team_b_1 === playerId || match.team_b_2 === playerId) return 'b'
@@ -190,7 +218,20 @@ function pairKey(left: string, right: string): string {
 }
 
 export function bestPerformer(players: Player[], matches: Match[]): LeaderboardRow | null {
-  const row = buildLeaderboard(players, matches, 'all').find((item) => item.matches > 0)
+  const row = players
+    .map((player) => ({
+      player,
+      ...statsForPlayer(player.id, matches, 'all'),
+    }))
+    .filter((item) => item.matches > 0)
+    .sort((a, b) => {
+      if (b.relativeWins !== a.relativeWins) return b.relativeWins - a.relativeWins
+      if (b.wins !== a.wins) return b.wins - a.wins
+      if (b.winPct !== a.winPct) return b.winPct - a.winPct
+      if (b.matches !== a.matches) return b.matches - a.matches
+      if (b.attendanceDays !== a.attendanceDays) return b.attendanceDays - a.attendanceDays
+      return a.player.name.localeCompare(b.player.name)
+    })[0]
   return row ?? null
 }
 

@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom'
 
 const items = [
   { to: '/', label: 'Today', icon: TodayIcon, end: true },
-  { to: '/shuttle', label: 'Shuttle', icon: ShuttleIcon, end: false },
+  { to: '/attendance', label: 'Attendance', icon: AttendanceIcon, end: false },
   { to: '/history', label: 'History', icon: HistoryIcon, end: false },
   { to: '/board', label: 'Board', icon: BoardIcon, end: false },
   { to: '/activity', label: 'Activity', icon: ActivityIcon, end: false },
@@ -43,15 +43,12 @@ function TodayIcon() {
   )
 }
 
-function ShuttleIcon() {
+function AttendanceIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M12 3v4M8 5.5 12 7l4-1.5M7 9h10l-1.2 8.5a4 4 0 0 1-7.6 0L7 9Z"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinejoin="round"
-      />
+      <circle cx="9" cy="8" r="3" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M4 19c.6-3 2.6-4.5 5-4.5s4.4 1.5 5 4.5" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M16 11v6M13 14h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   )
 }
