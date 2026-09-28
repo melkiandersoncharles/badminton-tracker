@@ -52,7 +52,7 @@ export function RecapHighlights({
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-lg font-bold">{performer.player.name}</p>
                     <p className="text-sm text-[#9bb5a8]">
-                      {performer.wins}W · {performer.losses}L · {performer.winPct}%
+                      {performer.wins}W · {performer.relativeWins}RW · {performer.losses}L · {performer.winPct}%
                     </p>
                   </div>
                 </div>

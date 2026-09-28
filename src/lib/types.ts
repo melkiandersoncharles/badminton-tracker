@@ -42,6 +42,7 @@ export type LeaderboardRow = {
   player: Player
   wins: number
   losses: number
+  relativeWins: number
   matches: number
   winPct: number
   attendanceDays: number
@@ -50,6 +51,7 @@ export type LeaderboardRow = {
 export type PlayerStat = {
   wins: number
   losses: number
+  relativeWins: number
   matches: number
   winPct: number
   attendanceDays: number

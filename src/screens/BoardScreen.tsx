@@ -62,7 +62,7 @@ export function BoardScreen() {
                   ) : null}
                 </p>
                 <p className="text-[11px] text-[#9bb5a8]">
-                  {row.wins}W · {row.losses}L · {row.matches} matches · {row.attendanceDays} days
+                  {row.wins}W · {row.relativeWins}RW · {row.losses}L · {row.matches} matches · {row.attendanceDays} days
                 </p>
               </div>
               <p className="text-right text-sm font-extrabold tabular-nums">{row.winPct}%</p>

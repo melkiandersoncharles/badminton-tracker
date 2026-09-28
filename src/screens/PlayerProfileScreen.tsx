@@ -149,6 +149,7 @@ function StatTable({
             <th className="px-3 py-2.5 text-left">Period</th>
             <th className="px-2 py-2.5 text-right">M</th>
             <th className="px-2 py-2.5 text-right">W</th>
+            <th className="px-2 py-2.5 text-right">RW</th>
             <th className="px-2 py-2.5 text-right">L</th>
             <th className="px-2 py-2.5 text-right">%</th>
             <th className="px-3 py-2.5 text-right">Days</th>
@@ -166,6 +167,7 @@ function StatTable({
               </td>
               <td className="px-2 py-2.5 text-right tabular-nums">{row.stats.matches}</td>
               <td className="px-2 py-2.5 text-right tabular-nums">{row.stats.wins}</td>
+              <td className="px-2 py-2.5 text-right tabular-nums">{row.stats.relativeWins}</td>
               <td className="px-2 py-2.5 text-right tabular-nums">{row.stats.losses}</td>
               <td className="px-2 py-2.5 text-right tabular-nums">{row.stats.winPct}</td>
               <td className="px-3 py-2.5 text-right tabular-nums">{row.stats.attendanceDays}</td>

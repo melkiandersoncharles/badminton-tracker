@@ -67,6 +67,7 @@ function computePlayerStats(playerId: string, scoped: Match[]): PlayerStat {
   let losses = 0
   let played = 0
   const days = new Set<string>()
+  const relativeWinKeys = new Set<string>()
 
   for (const match of scoped) {
     const side = sideOf(match, playerId)
@@ -75,13 +76,19 @@ function computePlayerStats(playerId: string, scoped: Match[]): PlayerStat {
     days.add(match.played_on)
     const winner = winnerOf(match)
     if (winner === 'draw') continue
-    if (winner === side) wins += 1
-    else losses += 1
+    if (winner === side) {
+      wins += 1
+      const partner = partnerIdOn(match, playerId)
+      if (partner) relativeWinKeys.add(`${match.played_on}|${partner}`)
+    } else {
+      losses += 1
+    }
   }
 
   return {
     wins,
     losses,
+    relativeWins: relativeWinKeys.size,
     matches: played,
     winPct: played === 0 ? 0 : Math.round((wins / played) * 100),
     attendanceDays: days.size,
