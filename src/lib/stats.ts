@@ -1,4 +1,4 @@
-import { currentMonthKey, monthKey } from './dates'
+import { currentMonthKey, monthBounds, monthKey } from './dates'
 import type { LeaderboardRow, Match, Player, PlayerStat } from './types'
 import { winnerOf } from './types'
 
@@ -56,6 +56,24 @@ export function matchesInMonth(matches: Match[], key: string): Match[] {
 
 export function daysWithMatchesInMonth(matches: Match[], key: string): string[] {
   return daysWithMatches(matchesInMonth(matches, key))
+}
+
+export type TeamMonthStats = {
+  month: string
+  matches: number
+  days: number
+  activeMembers: number
+}
+
+export function teamMonthStats(matches: Match[], players: Player[], month: string): TeamMonthStats {
+  const bounds = monthBounds(month)
+
+  return {
+    month,
+    matches: matchesInMonth(matches, month).length,
+    days: daysWithMatchesInMonth(matches, month).length,
+    activeMembers: membersPresentInRange(matches, players, bounds.start, bounds.end).length,
+  }
 }
 
 export type AttendanceRow = {

@@ -4,6 +4,7 @@ import { AttendanceGrid } from '../components/AttendanceGrid'
 import { EmptyState } from '../components/EmptyState'
 import { MatchCard } from '../components/MatchCard'
 import { RecapHighlights } from '../components/RecapHighlights'
+import { TeamMonthStats } from '../components/TeamMonthStats'
 import { ScreenHeader } from '../components/ScreenHeader'
 import { useData } from '../context/DataContext'
 import { formatDayLong, todayISO, todayRecapPeriod } from '../lib/dates'
@@ -35,6 +36,8 @@ export function TeamBoardScreen() {
       />
 
       <ActionButtons primary={{ to: '/match/new', label: 'Add match' }} secondary={{ to: '/', label: 'Home' }} />
+
+      <TeamMonthStats matches={matches} players={players} />
 
       {todays.length === 0 ? (
         <RecapHighlights
