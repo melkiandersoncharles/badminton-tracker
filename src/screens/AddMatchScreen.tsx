@@ -1,7 +1,9 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Avatar } from '../components/Avatar'
+import { EmptyState } from '../components/EmptyState'
 import { PlayerChip } from '../components/PlayerChip'
+import { ScreenHeader } from '../components/ScreenHeader'
 import { useData } from '../context/DataContext'
 import { todayISO } from '../lib/dates'
 
@@ -67,7 +69,11 @@ export function AddMatchScreen() {
         score_a: scoreA,
         score_b: scoreB,
       })
-      navigate('/')
+      if (playedOn === todayISO()) {
+        navigate('/team')
+      } else {
+        navigate(-1)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save match')
     } finally {
@@ -77,15 +83,15 @@ export function AddMatchScreen() {
 
   return (
     <form className="space-y-5 pb-6" onSubmit={(e) => void onSubmit(e)}>
-      <header className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#f0c14b]">New doubles</p>
-          <h1 className="mt-1 text-2xl font-bold">Add match</h1>
-        </div>
-        <button type="button" className="text-sm text-[#9bb5a8]" onClick={() => navigate(-1)}>
-          Cancel
-        </button>
-      </header>
+      <ScreenHeader
+        eyebrow="New doubles"
+        title="Add match"
+        actions={
+          <button type="button" className="text-sm text-[#9bb5a8]" onClick={() => navigate(-1)}>
+            Cancel
+          </button>
+        }
+      />
 
       <label className="block text-sm">
         <span className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#9bb5a8]">Date</span>
@@ -118,7 +124,7 @@ export function AddMatchScreen() {
       <section>
         <h2 className="mb-2 text-sm font-semibold text-[#9bb5a8]">Tap four players</h2>
         {players.length === 0 ? (
-          <p className="text-sm text-[#9bb5a8]">Add players first on the Players tab.</p>
+          <EmptyState>Add players first on the Players tab.</EmptyState>
         ) : (
           <div className="flex flex-wrap gap-2">
             {players.map((player) => (

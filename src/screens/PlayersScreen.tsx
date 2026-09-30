@@ -1,9 +1,12 @@
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { Avatar } from '../components/Avatar'
+import { ConfirmCodeDialog } from '../components/ConfirmCodeDialog'
+import { EmptyState } from '../components/EmptyState'
 import { GROUP_PIN, lockClub } from '../components/PinGate'
+import { ScreenHeader } from '../components/ScreenHeader'
 import { useData } from '../context/DataContext'
-import { switchOperator } from '../lib/operator'
+import { getOperatorId, switchOperator } from '../lib/operator'
 import { matchPlayerIds } from '../lib/types'
 import type { Player } from '../lib/types'
 
@@ -11,60 +14,75 @@ export function PlayersScreen() {
   const { players, matches, addPlayer, editPlayer, removePlayer } = useData()
   const [editing, setEditing] = useState<Player | null>(null)
   const [adding, setAdding] = useState<'member' | 'guest' | null>(null)
+  const [pendingRemove, setPendingRemove] = useState<Player | null>(null)
+  const [pendingEdit, setPendingEdit] = useState<Player | null>(null)
 
   const members = players.filter((p) => !p.is_guest)
   const guests = players.filter((p) => p.is_guest)
+  const operatorId = getOperatorId()
 
   function usedInMatch(id: string) {
     return matches.some((match) => matchPlayerIds(match).includes(id))
   }
 
+  function requestEdit(player: Player) {
+    if (player.id === operatorId) {
+      setEditing(player)
+      return
+    }
+    setPendingEdit(player)
+  }
+
   return (
-    <div className="space-y-5">
-      <header className="flex items-start justify-between">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#f0c14b]">Roster</p>
-          <h1 className="mt-1 text-2xl font-bold">Players</h1>
-        </div>
-        <div className="flex flex-wrap justify-end gap-2">
-          <button
-            type="button"
-            onClick={() => switchOperator()}
-            className="rounded-full bg-[#1c4a3a] px-3 py-1.5 text-xs font-bold text-ink"
-          >
-            Switch user
-          </button>
-          {GROUP_PIN ? (
+    <div className="space-y-4">
+      <ScreenHeader
+        eyebrow="Roster"
+        title="Players"
+        subtitle={`${members.length} members · ${guests.length} guests`}
+        actions={
+          <>
             <button
               type="button"
-              onClick={() => lockClub()}
-              className="rounded-full bg-[#1c4a3a] px-3 py-1.5 text-xs font-bold text-ink"
+              onClick={() => switchOperator()}
+              className="rounded-full bg-[#0c1f18]/60 px-3 py-1.5 text-xs font-bold text-[#9bb5a8]"
             >
-              Lock
+              Switch
             </button>
-          ) : null}
-          <button
-            type="button"
-            onClick={() => {
-              setAdding('member')
-              setEditing(null)
-            }}
-            className="rounded-full bg-[#f0c14b] px-3 py-1.5 text-xs font-bold text-[#0c1f18]"
-          >
-            Member
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setAdding('guest')
-              setEditing(null)
-            }}
-            className="rounded-full bg-[#1c4a3a] px-3 py-1.5 text-xs font-bold text-ink"
-          >
-            Guest
-          </button>
-        </div>
-      </header>
+            {GROUP_PIN ? (
+              <button
+                type="button"
+                onClick={() => lockClub()}
+                className="rounded-full bg-[#0c1f18]/60 px-3 py-1.5 text-xs font-bold text-[#9bb5a8]"
+              >
+                Lock
+              </button>
+            ) : null}
+          </>
+        }
+      />
+
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            setAdding('member')
+            setEditing(null)
+          }}
+          className="rounded-2xl bg-[#f0c14b] py-3 text-sm font-bold text-[#0c1f18]"
+        >
+          Add member
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setAdding('guest')
+            setEditing(null)
+          }}
+          className="rounded-2xl border border-[#d7ecd0]/20 py-3 text-sm font-bold text-[#9bb5a8]"
+        >
+          Add guest
+        </button>
+      </div>
 
       {adding ? (
         <PlayerForm
@@ -95,26 +113,52 @@ export function PlayersScreen() {
         title="Members"
         players={members}
         empty="Add your regulars — names and photos."
-        onEdit={setEditing}
-        onDelete={async (player) => {
+        onEdit={requestEdit}
+        onDelete={(player) => {
           if (usedInMatch(player.id)) {
             alert('This player is in a match. Remove those matches first.')
             return
           }
-          if (confirm(`Remove ${player.name}?`)) await removePlayer(player.id)
+          setPendingRemove(player)
         }}
       />
       <Group
         title="Guests"
         players={guests}
         empty="Drop-in players go here."
-        onEdit={setEditing}
-        onDelete={async (player) => {
+        onEdit={requestEdit}
+        onDelete={(player) => {
           if (usedInMatch(player.id)) {
             alert('This player is in a match. Remove those matches first.')
             return
           }
-          if (confirm(`Remove ${player.name}?`)) await removePlayer(player.id)
+          setPendingRemove(player)
+        }}
+      />
+
+      <ConfirmCodeDialog
+        open={pendingEdit !== null}
+        title={pendingEdit ? `Edit ${pendingEdit.name}?` : 'Edit player?'}
+        message="Enter the confirmation code to edit another player's details."
+        confirmLabel="Continue"
+        onCancel={() => setPendingEdit(null)}
+        onConfirm={() => {
+          if (!pendingEdit) return
+          setEditing(pendingEdit)
+          setPendingEdit(null)
+        }}
+      />
+
+      <ConfirmCodeDialog
+        open={pendingRemove !== null}
+        title={pendingRemove ? `Remove ${pendingRemove.name}?` : 'Remove player?'}
+        message="This cannot be undone. Enter the confirmation code to remove this player."
+        onCancel={() => setPendingRemove(null)}
+        onConfirm={() => {
+          if (!pendingRemove) return
+          const id = pendingRemove.id
+          setPendingRemove(null)
+          void removePlayer(id)
         }}
       />
     </div>
@@ -132,7 +176,7 @@ function Group({
   players: Player[]
   empty: string
   onEdit: (player: Player) => void
-  onDelete: (player: Player) => Promise<void>
+  onDelete: (player: Player) => void
 }) {
   return (
     <section>
@@ -140,9 +184,7 @@ function Group({
         {title} · {players.length}
       </h2>
       {players.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-[#d7ecd0]/20 px-4 py-6 text-sm text-[#9bb5a8]">
-          {empty}
-        </p>
+        <EmptyState>{empty}</EmptyState>
       ) : (
         <ul className="space-y-2">
           {players.map((player) => (

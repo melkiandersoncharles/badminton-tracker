@@ -16,10 +16,7 @@ export function RecapHighlights({
   pair: PairRow | null
   matchCount?: number
 }) {
-  const title =
-    period.kind === 'today' ? 'Today so far' : period.kind === 'week' ? 'Last week’s best' : 'Yesterday’s best'
-  const pairLabel = period.kind === 'today' ? 'Best team' : 'Best pair'
-  const playerLabel = period.kind === 'today' ? 'Best player' : 'Best performer'
+  const { title, pairLabel, playerLabel } = recapLabels(period.kind)
 
   return (
     <section className="space-y-3">
@@ -86,4 +83,23 @@ export function RecapHighlights({
       )}
     </section>
   )
+}
+
+function recapLabels(kind: RecapPeriod['kind']) {
+  switch (kind) {
+    case 'today':
+      return { title: 'Today so far', pairLabel: 'Best team', playerLabel: 'Best player' }
+    case 'week':
+      return { title: 'Last week’s best', pairLabel: 'Best pair', playerLabel: 'Best performer' }
+    case 'yesterday':
+      return { title: 'Yesterday’s best', pairLabel: 'Best pair', playerLabel: 'Best performer' }
+    case 'month':
+      return { title: 'Month highlights', pairLabel: 'Best pair', playerLabel: 'Best performer' }
+    case 'day':
+      return { title: 'Day highlights', pairLabel: 'Best pair', playerLabel: 'Best performer' }
+    default: {
+      const unreachable: never = kind
+      return unreachable
+    }
+  }
 }

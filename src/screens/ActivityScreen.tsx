@@ -1,3 +1,6 @@
+import { BackLink } from '../components/BackLink'
+import { EmptyState } from '../components/EmptyState'
+import { ScreenHeader } from '../components/ScreenHeader'
 import { useData } from '../context/DataContext'
 import { formatDateTime } from '../lib/dates'
 
@@ -21,29 +24,29 @@ export function ActivityScreen() {
 
   return (
     <div className="space-y-4">
-      <header className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#f0c14b]">Audit</p>
-          <h1 className="mt-1 text-2xl font-bold">Activity</h1>
-          <p className="mt-1 text-sm text-[#9bb5a8]">Who did what, and when.</p>
-        </div>
-        <button
-          type="button"
-          onClick={() => void refresh()}
-          className="shrink-0 rounded-full bg-[#1c4a3a] px-3 py-1.5 text-xs font-bold text-ink"
-        >
-          Refresh
-        </button>
-      </header>
+      <BackLink to="/team" label="Team board" />
+
+      <ScreenHeader
+        eyebrow="Audit"
+        title="Activity"
+        subtitle="Who did what, and when"
+        actions={
+          <button
+            type="button"
+            onClick={() => void refresh()}
+            className="rounded-full bg-[#0c1f18]/60 px-3 py-1.5 text-xs font-bold text-[#9bb5a8]"
+          >
+            Refresh
+          </button>
+        }
+      />
 
       {activityError ? (
         <p className="rounded-2xl bg-red-900/40 px-4 py-3 text-sm text-red-100">{activityError}</p>
       ) : null}
 
       {activities.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-[#d7ecd0]/20 px-4 py-10 text-center text-sm text-[#9bb5a8]">
-          No activity yet. Changes will show up here once members start using the app.
-        </p>
+        <EmptyState>No activity yet. Changes will show up here once members start using the app.</EmptyState>
       ) : (
         <ul className="space-y-2">
           {activities.map((entry) => {
@@ -59,11 +62,7 @@ export function ActivityScreen() {
                   </time>
                 </div>
                 <p className="mt-1 text-sm">{entry.details}</p>
-                {actor ? (
-                  <p className="mt-1 text-[11px] text-[#9bb5a8]">by {actor}</p>
-                ) : (
-                  <p className="mt-1 text-[11px] text-[#9bb5a8]">by unknown</p>
-                )}
+                <p className="mt-1 text-[11px] text-[#9bb5a8]">by {actor ?? 'unknown'}</p>
               </li>
             )
           })}

@@ -1,75 +1,59 @@
-import { Link } from 'react-router-dom'
-import { AttendanceGrid } from '../components/AttendanceGrid'
-import { MatchCard } from '../components/MatchCard'
-import { RecapHighlights } from '../components/RecapHighlights'
-import { useData } from '../context/DataContext'
-import { formatDayLong, todayISO, todayRecapPeriod } from '../lib/dates'
-import { bestPair, bestPerformer, matchesInRange, membersPresentForDay } from '../lib/stats'
-
-export function TodayScreen() {
-  const { matches, players, removeMatch } = useData()
-  const day = todayISO()
-  const todays = matches.filter((match) => match.played_on.slice(0, 10) === day)
-  const present = membersPresentForDay(matches, players, day)
-  const recap = todayRecapPeriod()
-  const recapMatches = matchesInRange(matches, recap.start, recap.end)
-  const livePeriod = {
-    kind: 'today' as const,
-    start: day,
-    end: day,
-    label: 'Updates as you add matches',
-  }
-
-  return (
-    <div className="space-y-5">
-      <header className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#f0c14b]">On court</p>
-          <h1 className="mt-1 text-2xl font-bold">{formatDayLong(day)}</h1>
-          <p className="mt-1 text-sm text-[#9bb5a8]">
-            {todays.length === 1 ? '1 match' : `${todays.length} matches`} · {present.length} members
-          </p>
-        </div>
-        <Link
-          to="/match/new"
-          className="shrink-0 rounded-full bg-[#f0c14b] px-3 py-2 text-xs font-bold text-[#0c1f18]"
-        >
-          Add match
-        </Link>
-      </header>
-
-      {todays.length === 0 ? (
-        <RecapHighlights
-          period={recap}
-          performer={bestPerformer(players, recapMatches)}
-          pair={bestPair(players, recapMatches)}
-        />
-      ) : (
-        <RecapHighlights
-          period={livePeriod}
-          matchCount={todays.length}
-          performer={bestPerformer(players, todays)}
-          pair={bestPair(players, todays)}
-        />
-      )}
-
-      <section>
-        <h2 className="mb-3 text-base font-bold">Today’s attendance (members)</h2>
-        <AttendanceGrid players={present} />
-      </section>
-
-      <section className="space-y-2">
-        <h2 className="text-base font-bold">Today’s matches</h2>
-        {todays.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-[#d7ecd0]/20 px-4 py-8 text-center text-sm text-[#9bb5a8]">
-            No matches yet. Tap Add match to log who played and the score.
-          </p>
-        ) : (
-          todays.map((match) => (
-            <MatchCard key={match.id} match={match} onDelete={(id) => void removeMatch(id)} />
-          ))
-        )}
-      </section>
-    </div>
-  )
-}
+import { Link } from 'react-router-dom'
+import { EmptyState } from '../components/EmptyState'
+import { HomeDashboard } from '../components/HomeDashboard'
+import { MatchCard } from '../components/MatchCard'
+import { ScreenHeader } from '../components/ScreenHeader'
+import { useData } from '../context/DataContext'
+import { todayISO } from '../lib/dates'
+import { getOperatorId } from '../lib/operator'
+import { playerById, sideOf } from '../lib/stats'
+
+export function TodayScreen() {
+  const { matches, players, removeMatch } = useData()
+  const day = todayISO()
+  const todays = matches.filter((match) => match.played_on.slice(0, 10) === day)
+  const operatorId = getOperatorId()
+  const operator = operatorId ? playerById(players, operatorId) : undefined
+  const yourMatchesToday = operator
+    ? todays.filter((match) => sideOf(match, operator.id) !== null)
+    : []
+
+  return (
+    <div className="space-y-4">
+      <ScreenHeader eyebrow="Your court" title="Home" />
+
+      {operator ? (
+        <HomeDashboard player={operator} players={players} matches={matches}>
+          {yourMatchesToday.length > 0 ? (
+            <section className="space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-base font-bold">Your matches today</h2>
+                <Link
+                  to={`/history/${day}?player=${operator.id}`}
+                  className="text-xs font-semibold text-[#f0c14b]"
+                >
+                  View all
+                </Link>
+              </div>
+              {yourMatchesToday.map((match) => (
+                <MatchCard
+                  key={match.id}
+                  match={match}
+                  highlightId={operator.id}
+                  onDelete={(id) => void removeMatch(id)}
+                />
+              ))}
+            </section>
+          ) : (
+            <EmptyState>
+              No matches for you today yet. Tap <span className="font-semibold text-white">Add match</span> to log a
+              game, or check the <Link to="/team" className="font-semibold text-[#f0c14b]">Team board</Link> for the
+              club.
+            </EmptyState>
+          )}
+        </HomeDashboard>
+      ) : null}
+    </div>
+  )
+}
+

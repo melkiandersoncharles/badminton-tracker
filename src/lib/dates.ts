@@ -122,10 +122,41 @@ export function formatDayRange(start: string, end: string): string {
 }
 
 export type RecapPeriod = {
-  kind: 'yesterday' | 'week' | 'today'
+  kind: 'yesterday' | 'week' | 'today' | 'month' | 'day'
   start: string
   end: string
   label: string
+}
+
+export function isWeekday(isoDate: string): boolean {
+  const [y, m, d] = isoDate.split('-').map(Number)
+  const weekday = new Date(y, m - 1, d).getDay()
+  return weekday >= 1 && weekday <= 5
+}
+
+export function weekdaysInRange(start: string, end: string): string[] {
+  const [sy, sm, sd] = start.split('-').map(Number)
+  const cursor = new Date(sy, sm - 1, sd)
+  const [ey, em, ed] = end.split('-').map(Number)
+  const endDate = new Date(ey, em - 1, ed)
+  const days: string[] = []
+
+  while (cursor <= endDate) {
+    const iso = todayISO(cursor)
+    if (isWeekday(iso)) days.push(iso)
+    cursor.setDate(cursor.getDate() + 1)
+  }
+
+  return days
+}
+
+export function monthBounds(key: string): { start: string; end: string } {
+  const [y, m] = key.split('-').map(Number)
+  const lastDay = new Date(y, m, 0).getDate()
+  return {
+    start: `${key}-01`,
+    end: `${key}-${String(lastDay).padStart(2, '0')}`,
+  }
 }
 
 /** Sat/Sun/Mon → last week. Tue–Fri → yesterday. */

@@ -50,6 +50,14 @@ export function monthKeysFromMatches(matches: Match[]): string[] {
   return [...keys].sort((a, b) => b.localeCompare(a))
 }
 
+export function matchesInMonth(matches: Match[], key: string): Match[] {
+  return matches.filter((match) => monthKey(match.played_on) === key)
+}
+
+export function daysWithMatchesInMonth(matches: Match[], key: string): string[] {
+  return daysWithMatches(matchesInMonth(matches, key))
+}
+
 export type AttendanceRow = {
   player: Player
   days: number
@@ -88,6 +96,14 @@ export function partnerIdOn(match: Match, playerId: string): string | null {
 
 export function matchesForPlayer(playerId: string, matches: Match[]): Match[] {
   return matches.filter((match) => sideOf(match, playerId) !== null)
+}
+
+export function matchesForPlayerInMonth(playerId: string, matches: Match[], key: string): Match[] {
+  return matchesForPlayer(playerId, matches).filter((match) => monthKey(match.played_on) === key)
+}
+
+export function daysWithMatchesForPlayerInMonth(playerId: string, matches: Match[], key: string): string[] {
+  return daysWithMatches(matchesForPlayerInMonth(playerId, matches, key))
 }
 
 function computePlayerStats(playerId: string, scoped: Match[]): PlayerStat {
@@ -205,12 +221,25 @@ export function buildLeaderboard(
       ...statsForPlayer(player.id, matches, scope),
     }))
     .sort((a, b) => {
+      if (b.relativeWins !== a.relativeWins) return b.relativeWins - a.relativeWins
       if (b.wins !== a.wins) return b.wins - a.wins
       if (b.winPct !== a.winPct) return b.winPct - a.winPct
       if (b.matches !== a.matches) return b.matches - a.matches
       if (b.attendanceDays !== a.attendanceDays) return b.attendanceDays - a.attendanceDays
       return a.player.name.localeCompare(b.player.name)
     })
+}
+
+export function leaderboardRank(
+  playerId: string,
+  players: Player[],
+  matches: Match[],
+  scope: 'all' | 'month',
+): { rank: number; total: number } | null {
+  const rows = buildLeaderboard(players, matches, scope)
+  const index = rows.findIndex((row) => row.player.id === playerId)
+  if (index === -1) return null
+  return { rank: index + 1, total: rows.length }
 }
 
 export type PartnerRow = {

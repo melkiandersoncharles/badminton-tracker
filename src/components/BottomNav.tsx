@@ -1,18 +1,17 @@
 import { NavLink } from 'react-router-dom'
 
 const items = [
-  { to: '/', label: 'Today', icon: TodayIcon, end: true },
-  { to: '/attendance', label: 'Attendance', icon: AttendanceIcon, end: false },
+  { to: '/', label: 'Home', icon: HomeIcon, end: true },
+  { to: '/team', label: 'Team', icon: TeamIcon, end: false },
   { to: '/history', label: 'History', icon: HistoryIcon, end: false },
   { to: '/board', label: 'Board', icon: BoardIcon, end: false },
-  { to: '/activity', label: 'Activity', icon: ActivityIcon, end: false },
   { to: '/players', label: 'Players', icon: PlayersIcon, end: false },
 ]
 
 export function BottomNav() {
   return (
     <nav className="shrink-0 border-t border-[#d7ecd0]/15 bg-[#0c1f18] pb-[env(safe-area-inset-bottom)]">
-      <ul className="grid grid-cols-6">
+      <ul className="grid grid-cols-5">
         {items.map((item) => (
           <li key={item.to}>
             <NavLink
@@ -34,21 +33,27 @@ export function BottomNav() {
   )
 }
 
-function TodayIcon() {
+function HomeIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="4" y="5" width="16" height="14" rx="2" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M4 10h16M12 5v14" stroke="currentColor" strokeWidth="1.8" />
+      <path
+        d="M5 10.5 12 4l7 6.5V19a1.5 1.5 0 0 1-1.5 1.5H6.5A1.5 1.5 0 0 1 5 19v-8.5Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path d="M10 20.5V13h4v7.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   )
 }
 
-function AttendanceIcon() {
+function TeamIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <circle cx="9" cy="8" r="3" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M4 19c.6-3 2.6-4.5 5-4.5s4.4 1.5 5 4.5" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M16 11v6M13 14h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <circle cx="8" cy="8" r="3" stroke="currentColor" strokeWidth="1.8" />
+      <circle cx="16" cy="8" r="3" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M3 19c.8-2.8 2.8-4 5-4s4.2 1.2 5 4" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M11 19c.8-2.8 2.8-4 5-4s4.2 1.2 5 4" stroke="currentColor" strokeWidth="1.8" />
     </svg>
   )
 }
@@ -66,20 +71,6 @@ function BoardIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path d="M7 20V10M12 20V4M17 20v-7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  )
-}
-
-function ActivityIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M5 7h14M5 12h10M5 17h12"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-      <circle cx="19" cy="17" r="2" stroke="currentColor" strokeWidth="1.8" />
     </svg>
   )
 }
